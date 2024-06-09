@@ -6,11 +6,36 @@
 # ***************************************************************************
 
 
-from sage.all import IntegerVectors, vector, matrix, QQ
+from sage.all import IntegerVectors, vector, matrix, QQ, PolynomialRing
+
+def generate_polynomial_ring(br, num_vars, x_pref='x', start=1):
+    r"""
+    Return a polynomial ring of ``num_vars`` variables adjoined to ``br``.
+    """
+    xvars = [x_pref+str(i+start) for i in range(num_vars)]
+    return PolynomialRing(br, xvars, num_vars)
+
+def generate_multi_polynomial_ring(br, num_vars, prefs=['x','y'], start=1):
+    r"""
+    Return a polynomial ring of ``num_vars`` variables in each of ``prefs`` adjoined to ``br``.
+    """
+    xyvars = [pref+str(i+start) for pref in prefs for i in range(num_vars)]
+    return PolynomialRing(br, xyvars, num_vars*len(prefs))
 
 def monomial_basis(n, br):
     r"""
     Return monomial basis of polynomials in ``br`` of nonnegative degree ``n``.
+
+    EXAMPLES::
+
+        sage: R = QQ['x1,x2,x3']
+        sage: monomial_basis(2,R)
+        [x1^2, x1*x2, x1*x3, x2^2, x2*x3, x3^2]
+        sage: R = QQ['x0,x1,x2']
+        sage: monomial_basis(1,R)
+        [x0, x1, x2]
+        sage: monomial_basis(0,R)
+        [1]
     """
     gens = br.gens()
     vecs = IntegerVectors(n, length=len(gens))
@@ -60,6 +85,17 @@ def solve_polynomial_in_terms_of_basis(fn, basis, base_ring=QQ):
     Given a polynomial ``fn`` with coefficients in ``base_ring``, return the coefficients of its expansion into ``basis`` as a list.
 
     This method works via linear algebra row-reduction and is not optimized. 
+
+    Also, ``fn`` needs only be in the ``base_ring``-span of ``basis``, but the elements of ``basis`` must be linearly-independent.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+        sage: basis = [x1+x2,x1-x2,x3^2]
+        sage: solve_polynomial_in_terms_of_basis(x1, basis)
+        [1/2, 1/2, 0] 
+        sage: solve_polynomial_in_terms_of_basis(x2+x3^2, basis)
+        [1/2, -1/2, 1]
     """
     leading_basis = basis[0]
     par = leading_basis.parent()
@@ -68,7 +104,7 @@ def solve_polynomial_in_terms_of_basis(fn, basis, base_ring=QQ):
     reduced_mat = mat.transpose().rref()
     for row in reduced_mat:
         if row[-1] != 0 and list(row)[:-1] == [0]*(len(row)-1):
-            raise Exception("Given function was not a linear combination of homogeneous basis!")
+            raise Exception("Given function was not a linear combination of basis!")
     for i in range(len(basis)):
         if reduced_mat[i][i] != 1:
             raise Exception("Matrix did not row reduce as expected!")
