@@ -43,7 +43,7 @@ def polys_to_matrix(fns, base_ring=QQ, mons=None):
 
         sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
         sage: polys = [x1,x1+x2,x1+x2+x3]
-        sage: polys_to_matrix 
+        sage: polys_to_matrix(polys)
         [1 0 0]
         [1 1 0]
         [1 1 1]
