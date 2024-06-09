@@ -21,9 +21,6 @@ jobs:
       - name: Pull SageMath Docker image
         run: docker pull sagemath/sagemath:latest
 
-      - name: Add current directory to PYPATH
-        run: export PYTHONPATH="."
-
       - name: Run doctests
         run: |
           docker run --rm -v ${{ github.workspace }}:/mnt/sage sagemath/sagemath:latest /bin/bash -c "

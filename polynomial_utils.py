@@ -25,7 +25,7 @@ def encode_fn_to_vec_with_monomial_encoding(fn, encoding, base_ring=QQ):
         sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
         sage: poly = x1^3+x1*x2^2
         sage: encoding = {x1^3:0, x1^2*x2:1, x1*x2^2:2, x2^3:3}
-        sage: encode_fn_to_vec_with_monomial_encoding(poly, encoding, R):
+        sage: encode_fn_to_vec_with_monomial_encoding(poly, encoding, R)
         (1, 0, 1, 0)
     """
     list_vec = [0]*len(encoding)
@@ -43,8 +43,10 @@ def polys_to_matrix(fns, base_ring=QQ, mons=None):
 
         sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
         sage: polys = [x1,x1+x2,x1+x2+x3]
-        sage: polys_to_matrix == matrix(QQ, [[1,0,0],[1,1,0],[1,1,1]])
-        True
+        sage: polys_to_matrix 
+        [1 0 0]
+        [1 1 0]
+        [1 1 1]
     """
     par = parent(fns[0])
     if not mons:
