@@ -1,0 +1,7 @@
+* Combinatorial Polynomials
+This code is a collection of some SageMath functions I have written while doing research on various algebraically and combinatorially significant polynomials.
+It is provided "as-is" for others to use how they would like.
+In the spirit of collaboration, if you find a bug, mistake, or improvement, please feel free to make a GitHub issue or, even better, a pull request.
+
+* Licensing
+Combinatorial Polynomials © 2024 by George H. Seelinger is licensed under the GPL-3.0 License.
