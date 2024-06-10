@@ -88,6 +88,7 @@ def double_schubert_poly(w):
         True
 
     """
+    w = Permutation(w)
     n = len(w)
     br = Frac(generate_multi_polynomial_ring(QQ, n))
     base_poly = prod([br('x'+str(i+1))-br('y'+str(j+1)) for i in range(n) for j in range(n) if i+j+2 <= n])
@@ -121,7 +122,8 @@ def grothendieck_poly(w, x_pref='x'):
         -x1*x2 + x1 + x2
     """
     n = len(w)
-    poly_ring = generate_polynomial_ring(QQ, num_vars, x_pref=x_pref)
+    w = Permutation(w)
+    poly_ring = generate_polynomial_ring(QQ, n, x_pref=x_pref)
     br = Frac(poly_ring)
     base_poly = prod([br(x_pref+str(i+1))**(n-i-1) for i in range(n)])
     longest_word = Permutation(range(n,0,-1))
@@ -136,6 +138,7 @@ def double_grothendieck_poly(w):
         sage: double_grothendieck_poly([1,3,2])
         -x1*x2*y1*y2 + x1*x2*y1 + x1*x2*y2 + x1*y1*y2 + x2*y1*y2 - x1*x2 - x1*y1 - x2*y1 - x1*y2 - x2*y2 - y1*y2 + x1 + x2 + y1 + y2
     """
+    w = Permutation(w)
     n = len(w)
     poly_ring = generate_multi_polynomial_ring(QQ, n)
     br = Frac(poly_ring)
