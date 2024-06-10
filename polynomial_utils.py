@@ -6,7 +6,7 @@
 # ***************************************************************************
 
 
-from sage.all import IntegerVectors, vector, matrix, QQ, PolynomialRing
+from sage.all import IntegerVectors, vector, matrix, QQ, PolynomialRing, parent
 
 def generate_polynomial_ring(br, num_vars, x_pref='x', start=1):
     r"""

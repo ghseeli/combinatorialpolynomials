@@ -214,7 +214,7 @@ def quantum_Schubert(perm, base_ring=QQ, start=1):
 
 ## Quantum Grothendieck polynomials
 
-def quantum_F_p_k(p, k, ambient_vars, br=QQ, var_fam='x', start=1):
+def quantum_F_p_k(p, k, ambient_vars, br=QQ, x_pref='x', start=1):
     r"""
     Return the polynomial `F_p^k` from Equation (3.1) in Lenart-Maeno.
     """
@@ -226,7 +226,7 @@ def quantum_F_p_k(p, k, ambient_vars, br=QQ, var_fam='x', start=1):
     if p==0:
         return ambient_ring.one()
     Is = Subsets(range(start,start+k),p)
-    return ambient_ring.zero() + sum(prod(1-ambient_ring(var_fam+str(i)) for i in I)*prod(1-ambient_ring('q'+str(i)) for i in I if i+1 not in I) for I in Is)
+    return ambient_ring.zero() + sum(prod(1-ambient_ring(x_pref+str(i)) for i in I)*prod(1-ambient_ring('q'+str(i)) for i in I if i+1 not in I) for I in Is)
 
 def quantum_F_p_k_bar(p, k, ambient_vars, br=QQ, start=1):
     r"""
