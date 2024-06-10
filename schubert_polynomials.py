@@ -11,6 +11,9 @@ from polynomial_utils import *
 Permutations.options(mult='r2l')
 
 def _iterate_operators_from_reduced_word(op_fn, w, poly, alphabet='x'):
+    r"""
+    For some natural number indexed operators `X_i`, define for permutation ``w`` operator `X_w(f) = X_{i_1} X_{i_2} \cdots X_{i_l}(f)`, where `w = s_{i_1} \cdots s_{i_l}` is any reduced factorization of `w`. Return `X_w(f)`.
+    """
     w = Permutation(w)
     res = poly
     red_word = w.reduced_word()
@@ -20,7 +23,7 @@ def _iterate_operators_from_reduced_word(op_fn, w, poly, alphabet='x'):
 
 def s_i(br, i, alphabet='x'):
     r"""
-    Return a ring homomorphism swapping variables ``xi`` and ``xi+1``.
+    Return a ring homomorphism swapping variables `x_i` and `x_{i+1}` (or any other letter corresponding to ``alphabet``).
 
     EXAMPLES::
 
@@ -122,6 +125,8 @@ def grothendieck_poly(w, x_pref='x'):
 
         sage: grothendieck_poly([1,3,2])
         -x1*x2 + x1 + x2
+        sage: grothendieck_poly([2,3,1])
+        x1*x2
     """
     n = len(w)
     w = Permutation(w)
@@ -151,6 +156,9 @@ def double_grothendieck_poly(w):
 ## Quantum Schubert polynomials
 
 def e_i_m(i, m, ambient_vars, br=QQ, start=1):
+    r"""
+    Return the elementary symmetric function `e_i(x_1,\ldots,x_m)`.
+    """
     var_string = reduce(lambda a,b: a+','+b, ['x'+str(j) for j in range(start,start+ambient_vars)])
     ambient_ring = br[var_string]
     sym = SymmetricFunctions(br)
@@ -159,14 +167,23 @@ def e_i_m(i, m, ambient_vars, br=QQ, start=1):
     return e[i].expand(ambient_vars,var_string).subs(zero_vars)
 
 def e_basis_elm(seq, br=QQ, start=1):
+    r"""
+    For ``seq`` a sequence of integers `(a_1,\ldots,a_m)`, return `e_{a_1}(x_1) e_{a_2}(x_1,x_2) \cdots e_{a_m}(x_1,\ldots,x_m)`.
+    """
     m = len(seq)
     return prod([e_i_m(seq[i],i+1,m,br,start) for i in range(m)])
 
 def e_basis(deg, l, br=QQ, start=1):
+    r"""
+    For a fixed degree ``deg`` and number of variables ``l``, return the basis of degree ``deg`` polynomials in ``l`` variables given by products of elementary symmetric functions in increasing numbers of variables.
+    """
     elms = [e_basis_elm(seq,br,start) for seq in IntegerVectors(deg,length=l)]
     return [elm for elm in elms if elm != 0]
 
 def Schubert_in_e(perm, base_ring=QQ):
+    r"""
+    Return the expansion of the Schubert polynomial indexed by ``perm``, a permutation of `n`, in the elementary symmetric function product basis of polynomials in ``n`` variables.
+    """
     l = len(perm)
     X = SchubertPolynomialRing(base_ring)
     poly = X(perm).expand() # Note, Sage gives 0-indexed Schubert polynomials
@@ -275,6 +292,10 @@ def quantum_Grothendieck(perm, base_ring=QQ):
         sage: quantum_Grothendieck([2,1,3])
         -x1*q1 + x1 + q1
         sage: quantum_Grothendieck([3,2,1]) == quantum_Grothendieck([2,1,3])*quantum_Grothendieck([2,3,1])
+        True
+        sage: A = generate_quantum_polynomial_ring(br, 3)
+        sage: x1,x2,x3,q1,q2,q3 = A.gens()
+        sage: quantum_Grothendieck([2,3,1]) == (1-q2h)*x1*x2-(q1-q2)*x1+q1
         True
     """
     l = len(perm)
