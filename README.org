@@ -1,7 +1,21 @@
 * Combinatorial Polynomials
-This code is a collection of some SageMath functions I have written while doing research on various algebraically and combinatorially significant polynomials.
+This code is a collection of some [[https://www.sagemath.org/][SageMath]] functions I have written while doing research on various algebraically and combinatorially significant polynomials.
 It is provided "as-is" for others to use how they would like.
+The code is not optimized in any way beyond what was necessary for me to do what I needed to do.
+For now, code should be considered under active development and you should not write code against this library assuming the interfaces will remain unchanged.
+Certain functions may also be implemented in SageMath, but I have chosen to rewrite them, either out of ignorance or because SageMath's implementation did not meet my own needs.
+
+* Existing implemented polynomials
++ Double Schubert polynomials
++ Grothendieck polynomials
++ Quantum Schubert polynomials
++ Quantum Grothendieck polynomials
+ 
+* Contributing
 In the spirit of collaboration, if you find a bug, mistake, or improvement, please feel free to make a GitHub issue or, even better, a pull request.
+I will try to address things as they come up, but this project is not my highest priority as I must engage in other professional responsibilities that take higher priority.
+If you would like to add any of this code to SageMath, please feel free; the code is licensed under GPL-3.0 to make it compatible with SageMath's licensing.
+I would appreciate attribution for any part that is my contribution.
 
 * Licensing
 Combinatorial Polynomials © 2024 by George H. Seelinger is licensed under the GPL-3.0 License.

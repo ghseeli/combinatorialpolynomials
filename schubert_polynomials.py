@@ -293,9 +293,9 @@ def quantum_Grothendieck(perm, base_ring=QQ):
         -x1*q1 + x1 + q1
         sage: quantum_Grothendieck([3,2,1]) == quantum_Grothendieck([2,1,3])*quantum_Grothendieck([2,3,1])
         True
-        sage: A = generate_quantum_polynomial_ring(br, 3)
+        sage: A = generate_quantum_polynomial_ring(QQ, 3)
         sage: x1,x2,x3,q1,q2,q3 = A.gens()
-        sage: quantum_Grothendieck([2,3,1]) == (1-q2h)*x1*x2-(q1-q2)*x1+q1
+        sage: quantum_Grothendieck([2,3,1]) == (1-q2)*x1*x2-(q1-q2)*x1+q1
         True
     """
     l = len(perm)
