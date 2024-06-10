@@ -13,6 +13,7 @@ Certain functions may also be implemented in SageMath, but I have chosen to rewr
  
 * Contributing
 In the spirit of collaboration, if you find a bug, mistake, or improvement, please feel free to make a GitHub issue or, even better, a pull request.
+Ideally, open source code leads to improvements and time-savings for everyone involved.
 I will try to address things as they come up, but this project is not my highest priority as I must engage in other professional responsibilities that take higher priority.
 If you would like to add any of this code to SageMath, please feel free; the code is licensed under GPL-3.0 to make it compatible with SageMath's licensing.
 I would appreciate attribution for any part that is my contribution.
