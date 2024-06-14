@@ -5,7 +5,9 @@
 #                  https://www.gnu.org/licenses/
 # ***************************************************************************
 
-from sage.all import Permutation, QQ, Frac, parent
+from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions
+from functools import reduce
+from math import prod
 from polynomial_utils import *
 
 Permutations.options(mult='r2l')
@@ -240,7 +242,9 @@ def quantum_Schubert(perm, base_ring=QQ, start=1):
         x1 + x2
     """
     schub_in_e = Schubert_in_e(perm, base_ring)
-    poly_in_quantum_E = sum([coeff*elm for (elm,coeff) in zip(quantum_e_basis(d, len(perm)-1, br=base_ring, start=start),schub_in_e)])
+    coeffs_in_e = [coeff for (coeff,supp) in schub_in_e]
+    d = Permutation(perm).length()
+    poly_in_quantum_E = sum([coeff*elm for (elm,coeff) in zip(quantum_e_basis(d, len(perm)-1, br=base_ring, start=start),coeffs_in_e)])
     return poly_in_quantum_E
 
 ## Quantum Grothendieck polynomials
