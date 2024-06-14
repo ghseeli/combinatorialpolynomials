@@ -224,9 +224,18 @@ def quantum_e_basis(deg, l, br=QQ, start=1):
 def quantum_Schubert(perm, base_ring=QQ, start=1):
     r"""
     Return the quantum Schubert polynomial associated to permutation ``perm`` from the corresponding paper by Fomin-Gelfand-Postnikov.
+
+    EXAMPLES::
+
+        sage: quantum_Schubert([3,1,2])
+        x1^2 - q1
+        sage: quantum_Schubert([1,2,3])
+        1
+        sage: quantum_Schubert([1,3,2])
+        x1 + x2
     """
     schub_in_e = Schubert_in_e(perm, base_ring)
-    poly_in_quantum_E = sum([coeff*elm for (elm,coeff) in zip(quantum_e_basis(d, len(perm)-1, br=base_ring, start=start),coeffs_in_e)])
+    poly_in_quantum_E = sum([coeff*elm for (elm,coeff) in zip(quantum_e_basis(d, len(perm)-1, br=base_ring, start=start),schub_in_e)])
     return poly_in_quantum_E
 
 ## Quantum Grothendieck polynomials
