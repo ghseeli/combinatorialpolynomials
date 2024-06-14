@@ -183,12 +183,17 @@ def e_basis(deg, l, br=QQ, start=1):
 def Schubert_in_e(perm, base_ring=QQ):
     r"""
     Return the expansion of the Schubert polynomial indexed by ``perm``, a permutation of `n`, in the elementary symmetric function product basis of polynomials in ``n`` variables.
+
+    EXAMPLES::
+
+        sage: Schubert_in_e([2,1,3])
+        [(1, [1, 0]), (0, [0, 1])]
     """
     l = len(perm)
     X = SchubertPolynomialRing(base_ring)
     poly = X(perm).expand() # Note, Sage gives 0-indexed Schubert polynomials
     d = poly.degree()
-    coeffs_in_e = solve_function_in_terms_of_basis(poly, e_basis(d, len(perm)-1, br=base_ring, start=0), base_ring)
+    coeffs_in_e = solve_polynomial_in_terms_of_basis(poly, e_basis(d, len(perm)-1, br=base_ring, start=0), base_ring)
     return list(zip(coeffs_in_e,IntegerVectors(d,length=l-1)))
 
 def generate_quantum_polynomial_ring(br, num_vars, x_pref='x', start=1):
