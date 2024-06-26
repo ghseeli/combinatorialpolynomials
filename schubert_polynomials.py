@@ -261,7 +261,12 @@ def generate_quantum_Schubert_basis(br, num_vars):
     EXAMPLES::
         sage: A = Frac(QQ['q1,q2'])['x1,x2,x3']
         sage: generate_quantum_Schubert_basis(A, 3)
-        {1: [1, 2, 3], x1 + x2: [1, 3, 2], x1: [2, 1, 3], x1*x2 + q1: [2, 3, 1], x1^2 + (-q1): [3, 1, 2], x1^2*x2 + q1*x1: [3, 2, 1]}
+        {1: [1, 2, 3],
+         x1: [2, 1, 3],
+         x1 + x2: [1, 3, 2],
+         x1*x2 + q1: [2, 3, 1],
+         x1^2 + (-q1): [3, 1, 2],
+         x1^2*x2 + q1*x1: [3, 2, 1]}
 
     USE CASE (in above example)::
         sage: qs_polys = list(generate_quantum_Schubert_basis(A, 3).keys())
