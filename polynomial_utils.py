@@ -96,6 +96,10 @@ def solve_polynomial_in_terms_of_basis(fn, basis, base_ring=QQ):
         [1/2, 1/2, 0] 
         sage: solve_polynomial_in_terms_of_basis(x2+x3^2, basis)
         [1/2, -1/2, 1]
+        sage: A = Frac(QQ['q1,q2,q3'])['x1,x2,x3']
+        sage: from schubert_polynomials import quantum_Schubert
+        sage: solve_polynomial_in_terms_of_basis(A(quantum_Schubert([2,3,1])),[A.one(),A('x1*x2')],base_ring=A.base_ring())
+        [q1, 1]
     """
     leading_basis = basis[0]
     par = leading_basis.parent()

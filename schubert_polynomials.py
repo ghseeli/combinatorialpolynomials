@@ -9,6 +9,7 @@ from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolyno
 from functools import reduce
 from math import prod
 from polynomial_utils import *
+from itertools import permutations
 
 Permutations.options(mult='r2l')
 
@@ -129,6 +130,8 @@ def grothendieck_poly(w, x_pref='x'):
         -x1*x2 + x1 + x2
         sage: grothendieck_poly([2,3,1])
         x1*x2
+        sage: grothendieck_poly([1, 4, 2, 3])
+        -x1^2*x2 - x1*x2^2 + x1^2 + x1*x2 + x2^2
     """
     n = len(w)
     w = Permutation(w)
@@ -240,6 +243,10 @@ def quantum_Schubert(perm, base_ring=QQ, start=1):
         1
         sage: quantum_Schubert([1,3,2])
         x1 + x2
+        sage: A = generate_quantum_polynomial_ring(QQ, 3)
+        sage: x1,x2,x3,q1,q2,q3 = A.gens()
+        sage: quantum_Schubert([3,4,1,2]) == x1*x1*x2*x2 + 2*q1*x1*x2 - q2*x1*x1 + q1*q1 + q1*q2
+        True 
     """
     schub_in_e = Schubert_in_e(perm, base_ring)
     coeffs_in_e = [coeff for (coeff,supp) in schub_in_e]
@@ -247,6 +254,31 @@ def quantum_Schubert(perm, base_ring=QQ, start=1):
     poly_in_quantum_E = sum([coeff*elm for (elm,coeff) in zip(quantum_e_basis(d, len(perm)-1, br=base_ring, start=start),coeffs_in_e)])
     return poly_in_quantum_E
 
+def generate_quantum_Schubert_basis(br, num_vars):
+    r"""
+    Returns dictionary with quantum Schubert polynomial as key and its corresponding permutation as value in given base ring.
+    
+    EXAMPLES::
+        sage: A = Frac(QQ['q1,q2'])['x1,x2,x3']
+        sage: generate_quantum_Schubert_basis(A, 3)
+        {1: [1, 2, 3],
+         x1: [2, 1, 3],
+         x1 + x2: [1, 3, 2],
+         x1*x2 + q1: [2, 3, 1],
+         x1^2 + (-q1): [3, 1, 2],
+         x1^2*x2 + q1*x1: [3, 2, 1]}
+
+    USE CASE (in above example)::
+        sage: qs_polys = list(generate_quantum_Schubert_basis(A, 3).keys())
+        sage: solve_polynomial_in_terms_of_basis(A(quantum_Schubert([2,1,3]) * quantum_Schubert([2,1,3])), qs_polys, A.base_ring())
+        [q1, 0, 0, 0, 1, 0]
+    """
+    quantum_Schubert_dict = {}
+    
+    for perm in list(permutations([i for i in range(1, num_vars + 1)])):
+        quantum_Schubert_dict[br(quantum_Schubert(list(perm)))] = list(perm)
+    return quantum_Schubert_dict
+    
 ## Quantum Grothendieck polynomials
 
 def quantum_F_p_k(p, k, ambient_vars, br=QQ, x_pref='x', start=1):
