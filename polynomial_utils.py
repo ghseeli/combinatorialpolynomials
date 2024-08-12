@@ -167,6 +167,6 @@ def matrix_to_linear_polynomial_function(mat, domain, codomain, domain_monomial_
         sage: codom_mons = monomial_basis(2,S)
         sage: phi = matrix_to_linear_polynomial_function(mat, R, S, dom_mons, codom_mons)
         sage: phi(2*x1^2+x1*x2)
-        2*y1^2 + 3*y1*y2 + 2*y2^2
+        2*y1^2 + 3*y1*y2 + 3*y2^2
     """
     return lambda poly: codomain(sum([coeff*cod_bas for (coeff,cod_bas) in zip((mat*polys_to_matrix([poly],base_ring=domain.base_ring(),mons=domain_monomial_basis).transpose()).column(0),codomain_basis)]))
