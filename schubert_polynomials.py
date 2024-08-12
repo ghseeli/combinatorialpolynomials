@@ -5,7 +5,7 @@
 #                  https://www.gnu.org/licenses/
 # ***************************************************************************
 
-from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions
+from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions, Sequence, cached_function
 from functools import reduce
 from math import prod
 from polynomial_utils import *
@@ -42,9 +42,89 @@ def s_i(br, i, alphabet='x'):
     new_dict = dict([(k,v) for (k,v) in gens_dict.items() if k != x+str(i) and k != x+str(i+1)] + [(x+str(i),gens_dict[x+str(i+1)]), (x+str(i+1),gens_dict[x+str(i)])]) 
     return br.hom([new_dict[k] for k in gens_dict.keys()])
 
+def divided_difference_on_monomial_closed(i, mon):
+    r"""
+    Return the divided difference `\partial_i` on a monomial ``mon``.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+        sage: divided_difference_on_monomial_closed(1,x1^5*x2^2)
+        x1^4*x2^2 + x1^3*x2^3 + x1^2*x2^4
+        sage: divided_difference_on_monomial_closed(1,x1^2*x2^5)
+        -x1^4*x2^2 - x1^3*x2^3 - x1^2*x2^4
+        sage: divided_difference_on_monomial_closed(1,x1*x2*x3^4)
+        0
+    """
+    supp = list(mon.exponents()[0])
+    par = parent(mon)
+    xx = par.gens()
+    if supp[i] == supp[i-1]:
+        return par.zero()
+    elif supp[i-1] > supp[i]:
+        exp_list = [supp[:i-1]+[supp[i-1]-j,supp[i]-1+j] + supp[i+1:] for j in range(1,abs(supp[i]-supp[i-1])+1)]
+    else:
+        exp_list = [supp[:i-1]+[supp[i]-j,supp[i-1]-1+j] + supp[i+1:] for j in range(1,abs(supp[i]-supp[i-1])+1)]
+    sign = 1 if supp[i-1] > supp[i] else -1
+    return sign*sum([prod(xx[j]**expon[j] for j in range(len(expon))) for expon in exp_list])
+
+def divided_difference_matrix(i, domain_mons, codomain_mons):
+    r"""
+    Given a list of monomials, return a matrix whose columns are the images of the monomials, written in the basis given by ``codomain_mons``.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2> = QQ['x1,x2']
+        sage: domain_mons = [x1^2, x1*x2, x2^2]
+        sage: codomain_mons = [x1, x2]
+        sage: divided_difference_matrix(1, domain_mons, codomain_mons)
+        [ 1  0  -1]
+        [ 1  0  -1]
+    """
+#    return polys_to_matrix([divided_difference_on_monomial_closed(i,mon) for mon in domain_mons],base_ring=parent(codomain_mons[0]).base_ring(), mons=codomain_mons).transpose()
+    A,v = Sequence([divided_difference_on_monomial_closed(i,mon) for mon in domain_mons]).coefficients_monomials(order=codomain_mons)
+    return A.transpose()
+
+@cached_function
+def divided_difference_matrix_x(i, deg, num_vars):
+    r"""
+    Give a matrix for the operator `\partial_i` applied to the vector space with basis degree ``deg`` monomials in ``num_vars``.
+
+    EXAMPLES::
+
+        sage: divided_difference_matrix_x(1, 2, 2)
+        [ 1  0  -1]
+        [ 1  0  -1]
+        sage: divided_difference_matrix_x(1, 0, 2)
+        [0]
+    """
+    R = generate_polynomial_ring(QQ, num_vars)
+    if deg > 0:
+        return divided_difference_matrix(i, monomial_basis(deg, R), monomial_basis(deg-1,R))
+    elif deg == 0:
+        return matrix(QQ, [[0]])
+    else:
+        raise ValueError("Negative degree divided difference matrix not implemented!")
+
+@cached_function
+def divided_difference_matrix_xy(i, xdeg, ydeg, num_vars):
+    r"""
+    Give a matrix of the operator `\partial_i^{(x)}` applied to the vector space with basis of monomials in ``num_vars`` `x`-variables and ``num_vars`` `y`-variables with `x`-degree ``xdeg`` and `y`-degree ``ydeg``.
+
+    Note, this is a degree (-1,0)-operator, so the `y`-degree of the result stays the same.
+
+    EXAMPLES::
+
+        sage: R = generate_multi_polynomial_ring(QQ, 2)
+        sage: divided_difference_matrix_xy(1,2,2,2) == divided_difference_matrix(1,monomial_basis_in_fixed_xy_degree(2,2,R),monomial_basis_in_fixed_xy_degree(1,2,R))
+        True
+    """
+    y_dim = len(IntegerVectors(ydeg, num_vars))
+    return divided_difference_matrix_x(i, xdeg, num_vars).tensor_product(matrix.identity(y_dim), subdivide=False)
+
 def divided_difference(i, poly, alphabet='x'):
     r"""
-    Return the divided difference `\partial_i` on ``poly``.
+    Return the divided difference `\partial_i` on ``poly``, computed directly from the definition.
 
     EXAMPLES::
     
@@ -61,6 +141,7 @@ def divided_difference(i, poly, alphabet='x'):
     si = s_i(br, i, x)
     return 1/(br(x+str(i)) - br(x+str(i+1)))*(poly-si(poly))
 
+    
 def divided_difference_w(w, poly, alphabet='x'):
     r"""
     Return the composition of divided difference operators corresponding to a reduced
@@ -83,23 +164,64 @@ def divided_difference_w(w, poly, alphabet='x'):
     """
     return _iterate_operators_from_reduced_word(divided_difference, w, poly, alphabet=alphabet)
 
-def double_schubert_poly(w):
+def divided_difference_w_via_matrix_homogeneous(w, poly, xdeg, ydeg, num_vars):
+    r"""
+    Apply the divided difference operator `\partial_w` to `poly` of fixed `x`-degree and `y`-degree. 
+
+    EXAMPLES::
+
+        sage: R = generate_multi_polynomial_ring(QQ,3)
+        sage: poly = R('x1^2*y1-x1*x2*y1-x1*x2*y2')
+        sage: divided_difference_w_via_matrix_homogeneous([2,1,3],poly,2,1,3) == divided_difference_w([2,1,3],poly)
+        True
+    """
+    word = list(reversed(Permutation(w).reduced_word()))
+    if xdeg < len(word):
+        return parent(poly).zero()
+    mats = [divided_difference_matrix_xy(word[i], xdeg-i, ydeg, num_vars) for i in range(len(word))]
+    res_vec = polys_to_matrix([poly], base_ring=parent(poly).base_ring(), mons=monomial_basis_in_fixed_xy_degree(xdeg, ydeg, parent(poly))).transpose()
+    for mat in mats:
+        res_vec = mat*res_vec
+    return sum([coeff*mon for (coeff,mon) in zip(res_vec.column(0),monomial_basis_in_fixed_xy_degree(xdeg-len(word), ydeg, parent(poly)))])
+
+def _polynomial_by_xy_bidegree(poly, num_x_vars):
+    r"""
+    Return a dictionary giving the `xy`-bidegree homogeneous pieces of ``poly``, assuming ``poly`` is a polynomial in `x_1,\ldots,x_n,y_1,\ldots,y_m` for `n` equal to ``num_x_vars``.
+
+    Note, this will return incorrect results if there are other algebraic generators!
+    This function is primarily meant for computations of double Schubert polynomials and related families and is not meant as a general purpose function.
+    See ``polynomial_by_degree`` in ``polynomial_utils.py`` for a general function.
+    """
+    bideg = lambda mon: (sum(mon.exponents()[0][:num_x_vars]),sum(mon.exponents()[0][num_x_vars:]))
+    return polynomial_by_degree(poly, bideg)
+
+def divided_difference_w_via_matrix(w, poly):
+    num_vars = len(w)
+    return  sum(divided_difference_w_via_matrix_homogeneous(w,homog_poly,xdeg,ydeg,num_vars) for ((xdeg, ydeg),homog_poly) in _polynomial_by_xy_bidegree(poly,num_vars).items())
+
+def double_schubert_poly(w, direct=True):
     r"""
     Return the double Schubert polynomial corresponding to permutation `w`.
 
     EXAMPLES::
     
-        sage: R.<x1,x2,x3,y1,y2,y3> = Frac(QQ['x1,x2,x3,y1,y2,y3'])
-        sage: double_schubert_poly([3,2,1]) == (x1-y1)*(x1-y2)*(x2-y1)
+        sage: R.<x1,x2,x3,y1,y2,y3> = QQ['x1,x2,x3,y1,y2,y3']
+        sage: double_schubert_poly([3,2,1]) == ((x1-y1)*(x1-y2)*(x2-y1))
         True
-
+        sage: double_schubert_poly([1,3,2]) == x1 + x2 - y1 - y2
+        True
+        sage: double_schubert_poly([1,3,2], direct=False) == x1 + x2 - y1 - y2
+        True
     """
     w = Permutation(w)
     n = len(w)
     br = Frac(generate_multi_polynomial_ring(QQ, n))
     base_poly = prod([br('x'+str(i+1))-br('y'+str(j+1)) for i in range(n) for j in range(n) if i+j+2 <= n])
     longest_word = Permutation(range(n,0,-1))
-    return divided_difference_w(w.inverse()*longest_word, base_poly)
+    if direct:
+        return divided_difference_w(w.inverse()*longest_word, base_poly).numerator()
+    else:
+        return divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly.numerator())
 
 ## Grothendieck polynomials
 
@@ -111,6 +233,76 @@ def pi_divided_difference(i, poly, alphabet='x'):
     x = alphabet
     return divided_difference(i, (1-br(x+str(i+1)))*poly, alphabet=x)
 
+def _dd_matrix_on_monomials_of_bounded_x_degree_and_fixed_y_degree(i, max_x_deg, y_deg, num_vars):
+    r"""
+    Return a square matrix representing the action of a divided difference operator on monomials of bounded `x`-degree and fixed `y`-degree.
+
+    EXAMPLES::
+
+        sage: _dd_matrix_on_monomials_of_bounded_x_degree_and_fixed_y_degree(1, 2, 0, 2)
+        [ 0  1 -1  0  0  0]
+        [ 0  0  0  1  0 -1]
+        [ 0  0  0  1  0 -1]
+        [ 0  0  0  0  0  0]
+        [ 0  0  0  0  0  0]
+        [ 0  0  0  0  0  0]
+        sage: _dd_matrix_on_monomials_of_bounded_x_degree_and_fixed_y_degree(1, 1, 1, 2)
+        [ 0  0  1  0 -1  0]
+        [ 0  0  0  1  0 -1]
+        [ 0  0  0  0  0  0]
+        [ 0  0  0  0  0  0]
+        [ 0  0  0  0  0  0]
+        [ 0  0  0  0  0  0]
+    """
+    m = max_x_deg+1
+    dd_matrices = [divided_difference_matrix_xy(i, xdeg, y_deg, num_vars) for xdeg in range(1,m)]
+    dd_block_matrix_top = block_matrix([[zero_matrix(QQ,dd_matrices[i].nrows(),len(IntegerVectors(y_deg,num_vars)))] + [0]*(i) + [dd_matrices[i]] + [0]*(m-2-i) for i in range(m-1)],sparse=True)
+    dd_block_matrix_bottom = zero_matrix(QQ,dd_block_matrix_top.ncols()-dd_block_matrix_top.nrows(),dd_block_matrix_top.ncols())
+    dd_block_matrix = block_matrix([[dd_block_matrix_top],[dd_block_matrix_bottom]],subdivide=False,sparse=True)
+    return dd_block_matrix
+
+def pi_divided_difference_matrix_xy(i, max_x_deg, y_deg, num_vars):
+    r"""
+    Return the matrix of the divided difference operator `\pi_i` on the space of monomials bounded in `x`-degree and with fixed `y`-degree.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2> = QQ['x1,x2']
+        sage: pi_divided_difference_matrix_xy(1, 2, 0, 2)
+        [ 1  1 -1  0  0  0]
+        [ 0  0  1  1  0 -1]
+        [ 0  0  1  1  0 -1]
+        [ 0  0  0  0  0  1]
+        [ 0  0  0 -1  1  1]
+        [ 0  0  0  0  0  1]
+
+    """
+    br = generate_multi_polynomial_ring(QQ, num_vars)
+    domain_mons = reduce(lambda a,b: a+b, [monomial_basis_in_fixed_xy_degree(m, y_deg, br) for m in range(max_x_deg+1)])
+    codomain_mons = domain_mons + monomial_basis_in_fixed_xy_degree(max_x_deg+1, y_deg, br)
+    mult_by_one_minus_xip1,v = Sequence([(1-br('x'+str(i+1)))*mon for mon in domain_mons]).coefficients_monomials(order=codomain_mons)
+    mult_by_one_minus_xip1_op = mult_by_one_minus_xip1.transpose()
+    dd_matrix = _dd_matrix_on_monomials_of_bounded_x_degree_and_fixed_y_degree(i, max_x_deg+1, y_deg, num_vars)
+    return (dd_matrix*mult_by_one_minus_xip1_op)[:len(domain_mons)]
+
+def pi_divided_difference_w_via_matrix_y_homogeneous(w, poly, max_x_deg, y_deg, num_vars):
+    r"""
+    Return the result of `\pi_w` on ``poly`` of fixed `y`-degree and of max `x`-degree ``max_x_deg`` using matrix methods. 
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3,y1,y2,y3> = QQ['x1,x2,x3,y1,y2,y3']
+        sage: pi_divided_difference_w_via_matrix_y_homogeneous([3,1,2],x2^2*y1, 2, 1, 3)
+        x1^2*y1 - x2*x3*y1 + x2*y1 + x3*y1 - y1
+    """
+    word = list(reversed(Permutation(w).reduced_word()))
+    mats = [pi_divided_difference_matrix_xy(word[i], max_x_deg, y_deg, num_vars) for i in range(len(word))]
+    mons = reduce(lambda a,b: a+b, [monomial_basis_in_fixed_xy_degree(m, y_deg, parent(poly)) for m in range(max_x_deg+1)])
+    res_vec = polys_to_matrix([poly], base_ring=parent(poly).base_ring(), mons=mons).transpose()
+    for mat in mats:
+        res_vec = mat*res_vec
+    return sum([coeff*mon for (coeff,mon) in zip(res_vec.column(0),mons)])
+
 def pi_divided_difference_w(w, poly, alphabet='x'):
     r"""
     Apply the operator `\pi_w = \pi_{s_{i_1}} \cdots \pi_{s_{i_l}}` for any reduced factorization of `w = s_{i_1} \cdots s_{i_l}`.
@@ -119,6 +311,22 @@ def pi_divided_difference_w(w, poly, alphabet='x'):
     """
     return _iterate_operators_from_reduced_word(pi_divided_difference, w, poly, alphabet=alphabet)
 
+def _polynomial_by_y_degree(poly, num_x_vars):
+    ydeg = lambda mon: sum(mon.exponents()[0][num_x_vars:])
+    return polynomial_by_degree(poly, ydeg)
+
+def pi_divided_difference_w_via_matrix(w, poly):
+    r"""
+    Return the result of `\pi_w` divided difference on ``poly`` using matrix methods.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3,y1,y2,y3> = QQ['x1,x2,x3,y1,y2,y3']
+        sage: pi_divided_difference_w_via_matrix([3,1,2],x1^2*x2*y1^2*y2+x1^2*y1^2) == pi_divided_difference_w([3,1,2],x1^2*x2*y1^2*y2+x1^2*y1^2)
+        True
+    """
+    num_vars = len(w)
+    return sum(pi_divided_difference_w_via_matrix_y_homogeneous(w, homog_poly, homog_poly.degree()-ydeg, ydeg, num_vars) for (ydeg, homog_poly) in _polynomial_by_y_degree(poly, num_vars).items())
 
 def grothendieck_poly(w, x_pref='x'):
     r"""
@@ -141,7 +349,7 @@ def grothendieck_poly(w, x_pref='x'):
     longest_word = Permutation(range(n,0,-1))
     return poly_ring.one()*poly_ring(pi_divided_difference_w(w.inverse()*longest_word, base_poly))
 
-def double_grothendieck_poly(w):
+def double_grothendieck_poly(w, direct=True):
     r"""
     Return the double Grothendieck polynomial associated with permutation ``w`` in monomials. 
 
@@ -149,6 +357,10 @@ def double_grothendieck_poly(w):
 
         sage: double_grothendieck_poly([1,3,2])
         -x1*x2*y1*y2 + x1*x2*y1 + x1*x2*y2 + x1*y1*y2 + x2*y1*y2 - x1*x2 - x1*y1 - x2*y1 - x1*y2 - x2*y2 - y1*y2 + x1 + x2 + y1 + y2
+        sage: double_grothendieck_poly([3,1,2])
+        x1^2*y1*y2 - x1^2*y1 - x1^2*y2 - 2*x1*y1*y2 + x1^2 + x1*y1 + x1*y2 + y1*y2
+        sage: double_grothendieck_poly([3,1,2], direct=False) == double_grothendieck_poly([3,1,2])
+        True
     """
     w = Permutation(w)
     n = len(w)
@@ -156,7 +368,10 @@ def double_grothendieck_poly(w):
     br = Frac(poly_ring)
     base_poly = prod([br('x'+str(i+1))+br('y'+str(j+1))-br('x'+str(i+1))*br('y'+str(j+1)) for i in range(n) for j in range(n) if i+j+2 <= n])
     longest_word = Permutation(range(n,0,-1))
-    return poly_ring(pi_divided_difference_w(w.inverse()*longest_word, base_poly))
+    if direct:
+        return poly_ring(pi_divided_difference_w(w.inverse()*longest_word, base_poly))
+    else:
+        return pi_divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly.numerator())
 
 ## Quantum Schubert polynomials
 

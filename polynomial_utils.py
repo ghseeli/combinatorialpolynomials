@@ -6,7 +6,7 @@
 # ***************************************************************************
 
 
-from sage.all import IntegerVectors, vector, matrix, QQ, PolynomialRing, parent
+from sage.all import IntegerVectors, vector, matrix, QQ, PolynomialRing, parent, prod
 
 def generate_polynomial_ring(br, num_vars, x_pref='x', start=1):
     r"""
@@ -41,6 +41,23 @@ def monomial_basis(n, br):
     vecs = IntegerVectors(n, length=len(gens))
     return [prod([gens[i]**(vec[i]) for i in range(len(gens))]) for vec in vecs]
 
+def monomial_basis_in_fixed_xy_degree(m, n, br, x_pref='x', y_pref='y'):
+    r"""
+    Return monomial basis of polynomials in ``br`` of nonnegative degree ``m+n`` where the `x`-degree of the monomials is ``m`` and the `y`-degree is ``n``.
+
+    EXAMPLES::
+
+        sage: R = generate_multi_polynomial_ring(QQ,2)
+        sage: len(monomial_basis_in_fixed_xy_degree(2,2,R))
+        9
+   """
+    gens = br.gens()
+    xx = [g for g in gens if str(g)[0] == x_pref]
+    yy = [g for g in gens if str(g)[0] == y_pref]
+    xxyy = xx+yy
+    vecs = [vec for vec in IntegerVectors(m+n, length=len(xx)+len(yy)) if sum(vec[:len(xx)]) == m and sum(vec[len(xx):]) == n]
+    return [prod([xxyy[i]**(vec[i]) for i in range(len(xxyy))]) for vec in vecs]
+
 def encode_fn_to_vec_with_monomial_encoding(fn, encoding, base_ring=QQ):
     r"""
     Given a polynomial ``fn`` and a dictionary ``encoding`` mapping monomials to coordinates, return a vector representing the polynomial.
@@ -62,7 +79,9 @@ def polys_to_matrix(fns, base_ring=QQ, mons=None):
     r"""
     Given a list of polynomials ``fns``, return a matrix represnting the polynomials, each polynomial as a row.
 
-    Note, the matrix is only supported on the monomials present in the given functions, so it will not have any zero columns.
+    Note, when ``mons`` is ``None``, the matrix is only supported on the monomials present in the given functions, so it will not have any zero columns.
+
+    Also, the ``coefficients_monomials()`` method for the ``Sequence`` object in Sage has a similar functionality, and may be more optimal in general.
 
     EXAMPLES::
 
@@ -113,3 +132,41 @@ def solve_polynomial_in_terms_of_basis(fn, basis, base_ring=QQ):
         if reduced_mat[i][i] != 1:
             raise Exception("Matrix did not row reduce as expected!")
     return [reduced_mat[i][-1] for i in range(len(basis))]
+
+def polynomial_by_degree(poly, degree_fn = lambda mon: mon.degree()):
+    r"""
+    Given a polynomial, return a dictionary giving its various parts of fixed degree.
+
+    ``degree_fn`` can be changed to filter the monomials by any degree function.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+        sage: f = x1^2+x2^2+x3+4
+        sage: polynomial_by_degree(f) == {2:x1^2+x2^2, 1:x3, 0:4}
+        True
+        sage: R = generate_multi_polynomial_ring(QQ,2)
+        sage: x1,x2,y1,y2 = R.gens()
+        sage: bideg = lambda mon: (sum(mon.exponents()[0][:2]),sum(mon.exponents()[0][2:]))
+        sage: polynomial_by_degree(x1^2*y2+x2*y1^2, bideg) == {(2,1): x1^2*y2, (1,2): x2*y1^2}
+        True
+    """
+    degrees = set(degree_fn(mon) for mon in poly.monomials())
+    return {d:sum(coeff*mon for (coeff, mon) in list(poly) if degree_fn(mon) == d) for d in degrees}
+
+def matrix_to_linear_polynomial_function(mat, domain, codomain, domain_monomial_basis, codomain_basis):
+    r"""
+    Given a matrix, provide a map on polynomials supported on the monomials in ``domain_monomial_basis`` to polynomials in ``codomain_basis`` where the matrix represents the transition between them.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2> = QQ['x1,x2']
+        sage: S.<y1,y2> = QQ['y1,y2']
+        sage: mat = matrix(QQ,[[1,0,0],[1,1,0],[1,1,1]])
+        sage: dom_mons = monomial_basis(2,R)
+        sage: codom_mons = monomial_basis(2,S)
+        sage: phi = matrix_to_linear_polynomial_function(mat, R, S, dom_mons, codom_mons)
+        sage: phi(2*x1^2+x1*x2)
+        2*y1^2 + 3*y1*y2 + 2*y2^2
+    """
+    return lambda poly: codomain(sum([coeff*cod_bas for (coeff,cod_bas) in zip((mat*polys_to_matrix([poly],base_ring=domain.base_ring(),mons=domain_monomial_basis).transpose()).column(0),codomain_basis)]))
