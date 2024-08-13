@@ -10,6 +10,7 @@ from functools import reduce
 from math import prod
 from polynomial_utils import *
 from itertools import permutations
+import warnings
 
 Permutations.options(mult='r2l')
 
@@ -82,8 +83,12 @@ def divided_difference_matrix(i, domain_mons, codomain_mons):
         [ 1  0  -1]
     """
 #    return polys_to_matrix([divided_difference_on_monomial_closed(i,mon) for mon in domain_mons],base_ring=parent(codomain_mons[0]).base_ring(), mons=codomain_mons).transpose()
-    A,v = Sequence([divided_difference_on_monomial_closed(i,mon) for mon in domain_mons]).coefficients_monomials(order=codomain_mons)
-    return A.transpose()
+    if domain_mons and codomain_mons:
+        A,v = Sequence([divided_difference_on_monomial_closed(i,mon) for mon in domain_mons]).coefficients_monomials(order=codomain_mons)
+        return A.transpose()
+    else:
+        warnings.warn("One of domain_mons: " + str(domain_mons) + " or codomain_mons:" + str(codomain_mons) + " is empty, producing an empty matrix!")
+        return matrix(QQ,[])
 
 @cached_function
 def divided_difference_matrix_x(i, deg, num_vars):
