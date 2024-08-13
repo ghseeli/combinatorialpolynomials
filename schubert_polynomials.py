@@ -56,6 +56,7 @@ def divided_difference_on_monomial_closed(i, mon):
         -x1^4*x2^2 - x1^3*x2^3 - x1^2*x2^4
         sage: divided_difference_on_monomial_closed(1,x1*x2*x3^4)
         0
+
     """
     supp = list(mon.exponents()[0])
     par = parent(mon)
@@ -67,7 +68,7 @@ def divided_difference_on_monomial_closed(i, mon):
     else:
         exp_list = [supp[:i-1]+[supp[i]-j,supp[i-1]-1+j] + supp[i+1:] for j in range(1,abs(supp[i]-supp[i-1])+1)]
     sign = 1 if supp[i-1] > supp[i] else -1
-    return sign*sum([prod(xx[j]**expon[j] for j in range(len(expon))) for expon in exp_list])
+    return par.zero() + sign*sum([prod(xx[j]**expon[j] for j in range(len(expon))) for expon in exp_list]) 
 
 def divided_difference_matrix(i, domain_mons, codomain_mons):
     r"""
