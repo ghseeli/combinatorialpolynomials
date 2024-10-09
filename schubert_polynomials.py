@@ -211,6 +211,9 @@ def double_schubert_poly(w, direct=True):
     r"""
     Return the double Schubert polynomial corresponding to permutation `w`.
 
+    If ``direct`` is ``True``, the polynomial will be computed directly using the definition of divided difference operators.
+    If ``direct`` is ``False``, it will first compute the matrix of each relevant divided difference operator and use the matrices to compute the polynomials.
+
     EXAMPLES::
     
         sage: R.<x1,x2,x3,y1,y2,y3> = QQ['x1,x2,x3,y1,y2,y3']
@@ -336,7 +339,7 @@ def pi_divided_difference_w_via_matrix(w, poly):
     num_vars = len(w)
     return sum(pi_divided_difference_w_via_matrix_y_homogeneous(w, homog_poly, homog_poly.degree()-ydeg, ydeg, num_vars) for (ydeg, homog_poly) in _polynomial_by_y_degree(poly, num_vars).items())
 
-def grothendieck_poly(w, x_pref='x'):
+def grothendieck_poly(w, x_pref='x', direct=True):
     r"""
     Return the Grothendieck polynomial associated with permutation ``w`` in monomials. 
 
@@ -346,7 +349,9 @@ def grothendieck_poly(w, x_pref='x'):
         -x1*x2 + x1 + x2
         sage: grothendieck_poly([2,3,1])
         x1*x2
-        sage: grothendieck_poly([1, 4, 2, 3])
+        sage: grothendieck_poly([1,4,2,3])
+        -x1^2*x2 - x1*x2^2 + x1^2 + x1*x2 + x2^2
+        sage: grothendieck_poly([1,4,2,3], direct=False)
         -x1^2*x2 - x1*x2^2 + x1^2 + x1*x2 + x2^2
     """
     n = len(w)
@@ -355,7 +360,10 @@ def grothendieck_poly(w, x_pref='x'):
     br = Frac(poly_ring)
     base_poly = prod([br(x_pref+str(i+1))**(n-i-1) for i in range(n)])
     longest_word = Permutation(range(n,0,-1))
-    return poly_ring.one()*poly_ring(pi_divided_difference_w(w.inverse()*longest_word, base_poly))
+    if direct:
+        return poly_ring.one()*poly_ring(pi_divided_difference_w(w.inverse()*longest_word, base_poly))
+    else:
+        return poly_ring.one()*poly_ring(pi_divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly.numerator()))
 
 def double_grothendieck_poly(w, direct=True):
     r"""
@@ -553,6 +561,23 @@ def quantum_E_hat_basis(deg, l, br=QQ, start=1):
 
 def inhomog_e_basis(top_deg, l, br=QQ, start=1):
     return [elm for d in reversed(range(top_deg+1)) for elm in e_basis(d, l, br=br, start=start)]
+
+def Grothendieck_in_e(perm, base_ring=QQ):
+    r"""
+    Return the expansion of the Grothendieck polynomial indexed by ``perm``, a permutation of `n`, in the elementary symmetric function product basis of polynomial in ``n`` variables.
+
+    EXAMPLES::
+
+        sage: Grothendieck_in_e([1,3,2])
+        [(0, [2, 0]), (-1, [1, 1]), (0, [0, 2]), (1, [1, 0]), (0, [0, 1])]
+    """
+    poly = grothendieck_poly(perm)
+    d = poly.degree()
+    l = len(perm)
+    basis = inhomog_e_basis(d, len(perm)-1, br=base_ring)
+    coeffs_in_e = solve_polynomial_in_terms_of_basis(poly, basis, base_ring)
+    indexing_set = [vec for de in reversed(range(d+1)) for vec in IntegerVectors(de,l-1)]
+    return list(zip(coeffs_in_e,indexing_set))
 
 def quantum_Grothendieck(perm, base_ring=QQ):
     r"""
