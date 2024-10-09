@@ -291,7 +291,7 @@ def pi_divided_difference_matrix_xy(i, max_x_deg, y_deg, num_vars):
     br = generate_multi_polynomial_ring(QQ, num_vars)
     domain_mons = reduce(lambda a,b: a+b, [monomial_basis_in_fixed_xy_degree(m, y_deg, br) for m in range(max_x_deg+1)])
     codomain_mons = domain_mons + monomial_basis_in_fixed_xy_degree(max_x_deg+1, y_deg, br)
-    mult_by_one_minus_xip1,v = Sequence([(1-br('x'+str(i+1)))*mon for mon in domain_mons]).coefficients_monomials(order=codomain_mons)
+    mult_by_one_minus_xip1,v = PolynomialSequence([(1-br('x'+str(i+1)))*mon for mon in domain_mons]).coefficients_monomials(order=codomain_mons)
     mult_by_one_minus_xip1_op = mult_by_one_minus_xip1.transpose()
     dd_matrix = _dd_matrix_on_monomials_of_bounded_x_degree_and_fixed_y_degree(i, max_x_deg+1, y_deg, num_vars)
     return (dd_matrix*mult_by_one_minus_xip1_op)[:len(domain_mons)]
