@@ -5,7 +5,7 @@
 #                  https://www.gnu.org/licenses/
 # ***************************************************************************
 
-from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions, Sequence, cached_function
+from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions, Sequence, cached_function, block_matrix, zero_matrix, binomial, IntegerVectors
 from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
 from functools import reduce
 from math import prod
