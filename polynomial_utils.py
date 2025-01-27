@@ -6,7 +6,7 @@
 # ***************************************************************************
 
 
-from sage.all import IntegerVectors, vector, matrix, QQ, PolynomialRing, parent, prod
+from sage.all import IntegerVectors, vector, matrix, QQ, PolynomialRing, LaurentPolynomialRing, parent, prod
 
 def generate_polynomial_ring(br, num_vars, x_pref='x', start=1):
     r"""
@@ -14,6 +14,10 @@ def generate_polynomial_ring(br, num_vars, x_pref='x', start=1):
     """
     xvars = [x_pref+str(i+start) for i in range(num_vars)]
     return PolynomialRing(br, xvars, num_vars)
+
+def generate_laurent_polynomial_ring(br, num_vars, x_pref='x', start=1):
+    xvars = [x_pref+str(i+start) for i in range(num_vars)]
+    return LaurentPolynomialRing(br, xvars)
 
 def generate_multi_polynomial_ring(br, num_vars, prefs=['x','y'], start=1):
     r"""

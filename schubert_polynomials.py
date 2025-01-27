@@ -10,6 +10,7 @@ from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
 from functools import reduce
 from math import prod
 from polynomial_utils import *
+from matrix_utils import *
 from itertools import permutations
 import warnings
 
@@ -114,8 +115,7 @@ def divided_difference_matrix_x(i, deg, num_vars):
     else:
         raise ValueError("Negative degree divided difference matrix not implemented!")
 
-@cached_function
-def divided_difference_matrix_xy(i, xdeg, ydeg, num_vars):
+def divided_difference_matrix_xy(i, xdeg, ydeg, num_vars, lazy=False):
     r"""
     Give a matrix of the operator `\partial_i^{(x)}` applied to the vector space with basis of monomials in ``num_vars`` `x`-variables and ``num_vars`` `y`-variables with `x`-degree ``xdeg`` and `y`-degree ``ydeg``.
 
@@ -126,9 +126,20 @@ def divided_difference_matrix_xy(i, xdeg, ydeg, num_vars):
         sage: R = generate_multi_polynomial_ring(QQ, 2)
         sage: divided_difference_matrix_xy(1,2,2,2) == divided_difference_matrix(1,monomial_basis_in_fixed_xy_degree(2,2,R),monomial_basis_in_fixed_xy_degree(1,2,R))
         True
+        sage: divided_difference_matrix_xy(1,2,1,3,True).to_matrix() == divided_difference_matrix_xy(1,2,1,3,False)
+        True
     """
     y_dim = len(IntegerVectors(ydeg, num_vars))
-    return divided_difference_matrix_x(i, xdeg, num_vars).tensor_product(matrix.identity(y_dim), subdivide=False)
+    dd_mat_x = divided_difference_matrix_x(i, xdeg, num_vars)
+    m = dd_mat_x.nrows()
+    n = dd_mat_x.ncols()
+    if not lazy:
+        return tensor_product_of_sparse_rational_matrices(dd_mat_x, matrix.identity(y_dim,sparse=True))
+    else:
+        return LazyBlockMatrix([[dd_mat_x[i][j]*matrix.identity(y_dim,sparse=True) for j in range(n)] for i in range(m)])
+        #return LazyBlockMatrix([[matrix(m,n,{})]*i + [dd_mat_x] + [matrix(m,n,{})]*(y_dim-i-1) for i in range(y_dim)])
+    
+    #return divided_difference_matrix_x(i, xdeg, num_vars).tensor_product(matrix.identity(y_dim), subdivide=False)
 
 def divided_difference(i, poly, alphabet='x'):
     r"""
@@ -172,7 +183,7 @@ def divided_difference_w(w, poly, alphabet='x'):
     """
     return _iterate_operators_from_reduced_word(divided_difference, w, poly, alphabet=alphabet)
 
-def divided_difference_w_via_matrix_homogeneous(w, poly, xdeg, ydeg, num_vars):
+def divided_difference_w_via_matrix_homogeneous(w, poly, xdeg, ydeg, num_vars, lazy=False):
     r"""
     Apply the divided difference operator `\partial_w` to `poly` of fixed `x`-degree and `y`-degree. 
 
@@ -182,15 +193,21 @@ def divided_difference_w_via_matrix_homogeneous(w, poly, xdeg, ydeg, num_vars):
         sage: poly = R('x1^2*y1-x1*x2*y1-x1*x2*y2')
         sage: divided_difference_w_via_matrix_homogeneous([2,1,3],poly,2,1,3) == divided_difference_w([2,1,3],poly)
         True
+        sage: divided_difference_w_via_matrix_homogeneous([2,1,3],poly,2,1,3,True) == divided_difference_w([2,1,3],poly)
+        True
     """
     word = list(reversed(Permutation(w).reduced_word()))
     if xdeg < len(word):
         return parent(poly).zero()
-    mats = [divided_difference_matrix_xy(word[i], xdeg-i, ydeg, num_vars) for i in range(len(word))]
-    res_vec = polys_to_matrix([poly], base_ring=parent(poly).base_ring(), mons=monomial_basis_in_fixed_xy_degree(xdeg, ydeg, parent(poly))).transpose()
+    mats = [divided_difference_matrix_xy(word[i], xdeg-i, ydeg, num_vars, lazy) for i in range(len(word))]
+    res_vec = polys_to_matrix([poly], base_ring=parent(poly).base_ring(), mons=monomial_basis_in_fixed_xy_degree(xdeg, ydeg, parent(poly))).row(0)#.transpose().column(0)
     for mat in mats:
-        res_vec = mat*res_vec
-    return sum([coeff*mon for (coeff,mon) in zip(res_vec.column(0),monomial_basis_in_fixed_xy_degree(xdeg-len(word), ydeg, parent(poly)))])
+        if not lazy:
+            res_vec = mat*res_vec
+        else:
+            res_vec = mat.apply_to_vector(res_vec)
+    return sum([coeff*mon for (coeff,mon) in zip(res_vec,monomial_basis_in_fixed_xy_degree(xdeg-len(word), ydeg, parent(poly)))])
+
 
 def _polynomial_by_xy_bidegree(poly, num_x_vars):
     r"""
@@ -203,9 +220,9 @@ def _polynomial_by_xy_bidegree(poly, num_x_vars):
     bideg = lambda mon: (sum(mon.exponents()[0][:num_x_vars]),sum(mon.exponents()[0][num_x_vars:]))
     return polynomial_by_degree(poly, bideg)
 
-def divided_difference_w_via_matrix(w, poly):
+def divided_difference_w_via_matrix(w, poly, lazy=False):
     num_vars = len(w)
-    return  sum(divided_difference_w_via_matrix_homogeneous(w,homog_poly,xdeg,ydeg,num_vars) for ((xdeg, ydeg),homog_poly) in _polynomial_by_xy_bidegree(poly,num_vars).items())
+    return  sum(divided_difference_w_via_matrix_homogeneous(w,homog_poly,xdeg,ydeg,num_vars,lazy) for ((xdeg, ydeg),homog_poly) in _polynomial_by_xy_bidegree(poly,num_vars).items())
 
 def double_schubert_poly(w, direct=True):
     r"""
@@ -232,7 +249,7 @@ def double_schubert_poly(w, direct=True):
     if direct:
         return divided_difference_w(w.inverse()*longest_word, base_poly).numerator()
     else:
-        return divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly.numerator())
+        return divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly.numerator(),False)
 
 ## Grothendieck polynomials
 
@@ -267,8 +284,8 @@ def _dd_matrix_on_monomials_of_bounded_x_degree_and_fixed_y_degree(i, max_x_deg,
     """
     m = max_x_deg+1
     dd_matrices = [divided_difference_matrix_xy(i, xdeg, y_deg, num_vars) for xdeg in range(1,m)]
-    dd_block_matrix_top = block_matrix([[zero_matrix(QQ,dd_matrices[i].nrows(),len(IntegerVectors(y_deg,num_vars)))] + [0]*(i) + [dd_matrices[i]] + [0]*(m-2-i) for i in range(m-1)],sparse=True)
-    dd_block_matrix_bottom = zero_matrix(QQ,dd_block_matrix_top.ncols()-dd_block_matrix_top.nrows(),dd_block_matrix_top.ncols())
+    dd_block_matrix_top = block_matrix([[zero_matrix(QQ,dd_matrices[i].nrows(),len(IntegerVectors(y_deg,num_vars)),sparse=True)] + [0]*(i) + [dd_matrices[i]] + [0]*(m-2-i) for i in range(m-1)],sparse=True)
+    dd_block_matrix_bottom = zero_matrix(QQ,dd_block_matrix_top.ncols()-dd_block_matrix_top.nrows(),dd_block_matrix_top.ncols(),sparse=True)
     dd_block_matrix = block_matrix([[dd_block_matrix_top],[dd_block_matrix_bottom]],subdivide=False,sparse=True)
     return dd_block_matrix
 
@@ -413,10 +430,10 @@ def e_basis(deg, l, br=QQ, start=1):
     r"""
     For a fixed degree ``deg`` and number of variables ``l``, return the basis of degree ``deg`` polynomials in ``l`` variables given by products of elementary symmetric functions in increasing numbers of variables.
     """
-    elms = [e_basis_elm(seq,br,start) for seq in IntegerVectors(deg,length=l)]
+    elms = [e_basis_elm(seq,br,start) for seq in IntegerVectors(deg,length=l,outer=list(range(1,l+1)))]
     return [elm for elm in elms if elm != 0]
 
-def Schubert_in_e(perm, base_ring=QQ):
+def Schubert_in_e(perm, base_ring=QQ, zeroes=True):
     r"""
     Return the expansion of the Schubert polynomial indexed by ``perm``, a permutation of `n`, in the elementary symmetric function product basis of polynomials in ``n`` variables.
 
@@ -424,13 +441,21 @@ def Schubert_in_e(perm, base_ring=QQ):
 
         sage: Schubert_in_e([2,1,3])
         [(1, [1, 0]), (0, [0, 1])]
+        sage: Schubert_in_e([2,1,3], zeros=False)
+        [(1, [1, 0])]
+        sage: Schubert_in_e([3,2,1])
+        [(1, [1, 2])]
     """
     l = len(perm)
     X = SchubertPolynomialRing(base_ring)
     poly = X(perm).expand() # Note, Sage gives 0-indexed Schubert polynomials
     d = poly.degree()
-    coeffs_in_e = solve_polynomial_in_terms_of_basis(poly, e_basis(d, len(perm)-1, br=base_ring, start=0), base_ring)
-    return list(zip(coeffs_in_e,IntegerVectors(d,length=l-1)))
+    coeffs_in_e = solve_polynomial_in_terms_of_basis(poly, e_basis(d, l-1, br=base_ring, start=0), base_ring)
+    res = list(zip(coeffs_in_e,IntegerVectors(d,length=l-1,outer=list(range(1,l+1))))) 
+    if zeros:
+        return res
+    else:
+        return [(coeff, supp) for (coeff, supp) in res if coeff != 0]
 
 def generate_quantum_polynomial_ring(br, num_vars, x_pref='x', start=1):
     r"""
@@ -562,7 +587,7 @@ def quantum_E_hat_basis(deg, l, br=QQ, start=1):
 def inhomog_e_basis(top_deg, l, br=QQ, start=1):
     return [elm for d in reversed(range(top_deg+1)) for elm in e_basis(d, l, br=br, start=start)]
 
-def Grothendieck_in_e(perm, base_ring=QQ):
+def Grothendieck_in_e(perm, base_ring=QQ, zeros=True):
     r"""
     Return the expansion of the Grothendieck polynomial indexed by ``perm``, a permutation of `n`, in the elementary symmetric function product basis of polynomial in ``n`` variables.
 
@@ -576,8 +601,12 @@ def Grothendieck_in_e(perm, base_ring=QQ):
     l = len(perm)
     basis = inhomog_e_basis(d, len(perm)-1, br=base_ring)
     coeffs_in_e = solve_polynomial_in_terms_of_basis(poly, basis, base_ring)
-    indexing_set = [vec for de in reversed(range(d+1)) for vec in IntegerVectors(de,l-1)]
-    return list(zip(coeffs_in_e,indexing_set))
+    indexing_set = [vec for de in reversed(range(d+1)) for vec in IntegerVectors(de,l-1,outer=list(range(1,l+1)))]
+    res = list(zip(coeffs_in_e,indexing_set))
+    if zeroes:
+        return res
+    else:
+        return [(coeff, supp) for (coeff, supp) in res if coeff != 0]
 
 def quantum_Grothendieck(perm, base_ring=QQ):
     r"""
