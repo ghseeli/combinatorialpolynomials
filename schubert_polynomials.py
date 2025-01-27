@@ -441,7 +441,7 @@ def Schubert_in_e(perm, base_ring=QQ, zeroes=True):
 
         sage: Schubert_in_e([2,1,3])
         [(1, [1, 0]), (0, [0, 1])]
-        sage: Schubert_in_e([2,1,3], zeros=False)
+        sage: Schubert_in_e([2,1,3], zeroes=False)
         [(1, [1, 0])]
         sage: Schubert_in_e([3,2,1])
         [(1, [1, 2])]
@@ -452,7 +452,7 @@ def Schubert_in_e(perm, base_ring=QQ, zeroes=True):
     d = poly.degree()
     coeffs_in_e = solve_polynomial_in_terms_of_basis(poly, e_basis(d, l-1, br=base_ring, start=0), base_ring)
     res = list(zip(coeffs_in_e,IntegerVectors(d,length=l-1,outer=list(range(1,l+1))))) 
-    if zeros:
+    if zeroes:
         return res
     else:
         return [(coeff, supp) for (coeff, supp) in res if coeff != 0]
@@ -587,7 +587,7 @@ def quantum_E_hat_basis(deg, l, br=QQ, start=1):
 def inhomog_e_basis(top_deg, l, br=QQ, start=1):
     return [elm for d in reversed(range(top_deg+1)) for elm in e_basis(d, l, br=br, start=start)]
 
-def Grothendieck_in_e(perm, base_ring=QQ, zeros=True):
+def Grothendieck_in_e(perm, base_ring=QQ, zeroes=True):
     r"""
     Return the expansion of the Grothendieck polynomial indexed by ``perm``, a permutation of `n`, in the elementary symmetric function product basis of polynomial in ``n`` variables.
 
