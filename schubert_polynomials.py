@@ -439,7 +439,7 @@ def generate_quantum_polynomial_ring(br, num_vars, x_pref='x', start=1):
     xq_vars = ['x'+str(j+start) for j in range(num_vars)]+['q'+str(j+start) for j in range(num_vars)] 
     return PolynomialRing(br, xq_vars, 2*num_vars)
 
-def quantum_e_i_m(i,m,ambient_vars,br=QQ, start=1):
+def quantum_e_i_m(i, m, ambient_vars, br=QQ, start=1):
     r"""
     Return the quantum ``E_i^m`` polynomial.
     """
