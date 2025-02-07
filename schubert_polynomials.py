@@ -5,7 +5,7 @@
 #                  https://www.gnu.org/licenses/
 # ***************************************************************************
 
-from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions, Sequence, cached_function, block_matrix, zero_matrix, binomial, IntegerVectors
+from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions, Sequence, Subsets, cached_function, block_matrix, zero_matrix, binomial, IntegerVectors
 from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
 from functools import reduce
 from math import prod
@@ -140,10 +140,35 @@ def divided_difference_matrix_xy(i, xdeg, ydeg, num_vars, lazy=False):
         #return LazyBlockMatrix([[matrix(m,n,{})]*i + [dd_mat_x] + [matrix(m,n,{})]*(y_dim-i-1) for i in range(y_dim)])
     
     #return divided_difference_matrix_x(i, xdeg, num_vars).tensor_product(matrix.identity(y_dim), subdivide=False)
-
-def divided_difference(i, poly, alphabet='x'):
+def divided_difference_on_polynomial(i, poly, alphabet='x'):
     r"""
-    Return the divided difference `\partial_i` on ``poly``, computed directly from the definition.
+    Return the divided difference `\partial_i` on ``poly``, using the closed monomial formula on each monomial. 
+
+   See ``divided_difference_on_monomial_closed``.
+
+    EXAMPLES::
+    
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+        sage: divided_difference_on_polynomial(1,x1+x2)
+        0
+        sage: divided_difference_on_polynomial(1,x1+x3) == (x1-x2)/(x1-x2)
+        True
+        sage: divided_difference_on_polynomial(2,x1^2*x2) == (x1^2*x2-x1^2*x3)/(x2-x3)
+        True
+    """
+    par = parent(poly)
+    xi = par(alphabet+str(i))
+    xip1 = par(alphabet+str(i+1))
+    xi_pos = par.gens().index(xi)
+    xip1_pos = par.gens().index(xip1)
+    assert xi_pos+1 == xip1_pos
+    return sum([coeff*divided_difference_on_monomial_closed(i, mon) for (coeff,mon) in list(poly)])
+
+def divided_difference(i, f, alphabet='x'):
+    r"""
+    Return the divided difference `\partial_i` on ``f``, computed directly from the definition.
+
+    Note, it can be unnecessarily slow to carry out polynomial division, so ``divided_difference_on_polynomial`` may be faster if you are computing the result on a polynomial.
 
     EXAMPLES::
     
@@ -155,10 +180,10 @@ def divided_difference(i, poly, alphabet='x'):
         sage: divided_difference(2,x1^2*x2) == (x1^2*x2-x1^2*x3)/(x2-x3)
         True
     """
-    br = parent(poly)
+    br = parent(f)
     x = alphabet
     si = s_i(br, i, x)
-    return 1/(br(x+str(i)) - br(x+str(i+1)))*(poly-si(poly))
+    return 1/(br(x+str(i)) - br(x+str(i+1)))*(f-si(f))
 
     
 def divided_difference_w(w, poly, alphabet='x'):
@@ -260,6 +285,12 @@ def pi_divided_difference(i, poly, alphabet='x'):
     br = parent(poly)
     x = alphabet
     return divided_difference(i, (1-br(x+str(i+1)))*poly, alphabet=x)
+
+def pi_divided_difference_closed(i, poly, alphabet='x'):
+    br = parent(poly)
+    x = alphabet
+    return divided_difference_on_polynomial(i, (1-br(x+str(i+1)))*poly, alphabet=x)
+   
 
 def _dd_matrix_on_monomials_of_bounded_x_degree_and_fixed_y_degree(i, max_x_deg, y_deg, num_vars):
     r"""
@@ -402,7 +433,13 @@ def double_grothendieck_poly(w, direct=True):
     base_poly = prod([br('x'+str(i+1))+br('y'+str(j+1))-br('x'+str(i+1))*br('y'+str(j+1)) for i in range(n) for j in range(n) if i+j+2 <= n])
     longest_word = Permutation(range(n,0,-1))
     if direct:
-        return poly_ring(pi_divided_difference_w(w.inverse()*longest_word, base_poly))
+        #return poly_ring(pi_divided_difference_w(w.inverse()*longest_word, base_poly))
+        if w == Permutation(list(range(n,0,-1))):
+            return poly_ring(base_poly)
+        else:
+            ascent = min([i for i in range(1,n) if w(i) < w(i+1)])
+            si_ascent = Permutation(list(range(1,ascent))+[ascent+1,ascent]+list(range(ascent+2,n+1)))
+            return poly_ring(pi_divided_difference_closed(ascent,double_grothendieck_poly(tuple(w*si_ascent))))
     else:
         return pi_divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly.numerator())
 
@@ -594,7 +631,7 @@ def Grothendieck_in_e(perm, base_ring=QQ, zeroes=True):
     EXAMPLES::
 
         sage: Grothendieck_in_e([1,3,2])
-        [(0, [2, 0]), (-1, [1, 1]), (0, [0, 2]), (1, [1, 0]), (0, [0, 1])]
+        [(0, [1, 1]), (-1, [0, 2]), (0, [1, 0]), (1, [0, 1]), (0, [0, 0])]
     """
     poly = grothendieck_poly(perm)
     d = poly.degree()
@@ -635,3 +672,6 @@ def quantum_Grothendieck(perm, base_ring=QQ):
     coeffs_in_e = solve_polynomial_in_terms_of_basis(poly, basis, base_ring)
     poly_in_quantum_E = sum([coeff*elm for (elm,coeff) in zip(quantum_E_hat_basis(d, len(perm)-1, br=base_ring),coeffs_in_e)])
     return poly_in_quantum_E
+
+
+    
