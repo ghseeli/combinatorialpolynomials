@@ -431,7 +431,7 @@ def double_grothendieck_poly(w, direct=True):
     poly_ring = generate_multi_polynomial_ring(QQ, n)
     br = Frac(poly_ring)
     base_poly = prod([br('x'+str(i+1))+br('y'+str(j+1))-br('x'+str(i+1))*br('y'+str(j+1)) for i in range(n) for j in range(n) if i+j+2 <= n])
-    longest_word = Permutation(range(n,0,-1))
+    longest_word = Permutation(list(range(n,0,-1)))
     if direct:
         #return poly_ring(pi_divided_difference_w(w.inverse()*longest_word, base_poly))
         if w == Permutation(list(range(n,0,-1))):
@@ -439,7 +439,8 @@ def double_grothendieck_poly(w, direct=True):
         else:
             ascent = min([i for i in range(1,n) if w(i) < w(i+1)])
             si_ascent = Permutation(list(range(1,ascent))+[ascent+1,ascent]+list(range(ascent+2,n+1)))
-            return poly_ring(pi_divided_difference_closed(ascent,double_grothendieck_poly(tuple(w*si_ascent))))
+            next_perm = w*si_ascent
+            return poly_ring(pi_divided_difference_closed(ascent,double_grothendieck_poly(next_perm)))
     else:
         return pi_divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly.numerator())
 
