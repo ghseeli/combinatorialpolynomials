@@ -7,6 +7,7 @@
 
 
 from sage.all import IntegerVectors, vector, matrix, QQ, PolynomialRing, LaurentPolynomialRing, parent, prod
+from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
 
 def generate_polynomial_ring(br, num_vars, x_pref='x', start=1):
     r"""
@@ -79,7 +80,7 @@ def encode_fn_to_vec_with_monomial_encoding(fn, encoding, base_ring=QQ):
         list_vec[encoding[mon]] = coeff
     return vector(base_ring, list_vec)
 
-def polys_to_matrix(fns, base_ring=QQ, mons=None):
+def polys_to_matrix(fns, base_ring=QQ, mons=None, sparse=False):
     r"""
     Given a list of polynomials ``fns``, return a matrix represnting the polynomials, each polynomial as a row.
 
@@ -95,15 +96,25 @@ def polys_to_matrix(fns, base_ring=QQ, mons=None):
         [1 0 0]
         [1 1 0]
         [1 1 1]
+        sage: polys_to_matrix(polys, sparse=True)
+        [1 0 0]
+        [1 1 0]
+        [1 1 1]
+        sage: polys_to_matrix(polys, sparse=True).is_sparse()
+        True
     """
     par = parent(fns[0])
     if not mons:
         mons = list(reversed(sorted(list(set([mon for fn in fns for mon in fn.monomials()])))))
-    encoding = {mons[i]:i for i in range(len(mons))}
-    mat = matrix(base_ring, [encode_fn_to_vec_with_monomial_encoding(fn, encoding, base_ring) for fn in fns])
-    return mat
+    if sparse:
+        mat = PolynomialSequence(par, fns).coefficients_monomials(order=mons)[0]
+        return mat
+    else:
+        encoding = {mons[i]:i for i in range(len(mons))}
+        mat = matrix(base_ring, [encode_fn_to_vec_with_monomial_encoding(fn, encoding, base_ring) for fn in fns])
+        return mat
 
-def solve_polynomial_in_terms_of_basis(fn, basis, base_ring=QQ):
+def solve_polynomial_in_terms_of_basis(fn, basis, base_ring=QQ, sparse=False):
     r"""
     Given a polynomial ``fn`` with coefficients in ``base_ring``, return the coefficients of its expansion into ``basis`` as a list.
 
@@ -127,7 +138,7 @@ def solve_polynomial_in_terms_of_basis(fn, basis, base_ring=QQ):
     leading_basis = basis[0]
     par = leading_basis.parent()
     fns = basis + [fn]
-    mat = polys_to_matrix(fns, base_ring)
+    mat = polys_to_matrix(fns, base_ring, sparse=sparse)
     reduced_mat = mat.transpose().rref()
     for row in reduced_mat:
         if row[-1] != 0 and list(row)[:-1] == [0]*(len(row)-1):
