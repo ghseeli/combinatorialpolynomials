@@ -17,6 +17,9 @@ def generate_polynomial_ring(br, num_vars, x_pref='x', start=1):
     return PolynomialRing(br, xvars, num_vars)
 
 def generate_laurent_polynomial_ring(br, num_vars, x_pref='x', start=1):
+    r"""
+    Return a Laurent polynomial ring of ``num_vars`` variables adjoined to ``br``.
+    """
     xvars = [x_pref+str(i+start) for i in range(num_vars)]
     return LaurentPolynomialRing(br, xvars)
 
@@ -185,3 +188,29 @@ def matrix_to_linear_polynomial_function(mat, domain, codomain, domain_monomial_
         2*y1^2 + 3*y1*y2 + 3*y2^2
     """
     return lambda poly: codomain(sum([coeff*cod_bas for (coeff,cod_bas) in zip((mat*polys_to_matrix([poly],base_ring=domain.base_ring(),mons=domain_monomial_basis).transpose()).column(0),codomain_basis)]))
+
+def polynomial_to_coeff_support_list(poly):
+    r"""
+    Given a polynomial, return a list of tuples of the form (coefficient, monomial exponent vector).
+
+    EXAMPLES::
+
+        sage: A = generate_polynomial_ring(QQ, 3)
+        sage: polynomial_to_coeff_support_list(A('x1*x2^2')+4*A('x3'))
+        [(1, (1, 2, 0)), (4, (0, 0, 1))]
+    """
+    coeff_mon_list = list(poly)
+    return [(coeff, mon.exponents()[0]) for (coeff, mon) in coeff_mon_list]
+
+def coeff_support_list_to_polynomial(coeff_support_list, poly_ring):
+    r"""
+    Given a list of tuples of the form (coefficient, monomial exponent vector) along with a target polynomial ring, return the associated polynomial.
+
+    EXAMPLES::
+
+        sage: A = generate_polynomial_ring(QQ, 3)
+        sage: coeff_support_list_to_polynomial([(1, (1, 2, 0)), (4, (0, 0, 1))], A)
+        x1*x2^2 + 4*x3
+    """
+    gens = poly_ring.gens()
+    return sum(coeff*prod(gens[i]**supp[i] for i in range(len(supp))) for (coeff, supp) in coeff_support_list)
