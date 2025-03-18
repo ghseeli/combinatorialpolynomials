@@ -276,6 +276,36 @@ def double_schubert_poly(w, direct=True):
     else:
         return divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly.numerator(),False)
 
+def reduced_factorization_pairs(w):
+    r"""
+    Given a permutation ``w``, return all pairs `(u,v)` such that `u \cdot v = w` and `\ell(u)+\ell(v) = \ell(w)`.
+
+    EXAMPLES::
+
+        sage: reduced_factorization_pairs([1,2,3])
+        [([1, 2, 3], [1, 2, 3])]
+        sage: reduced_factorization_pairs([2,1,3])
+        [([1, 2, 3], [2, 1, 3]), ([2, 1, 3], [1, 2, 3])]
+        sage: reduced_factorization_pairs([3,2,1])
+        [([2, 3, 1], [2, 1, 3]),
+         ([1, 3, 2], [2, 3, 1]),
+         ([1, 2, 3], [3, 2, 1]),
+         ([2, 1, 3], [3, 1, 2]),
+         ([3, 1, 2], [1, 3, 2]),
+         ([3, 2, 1], [1, 2, 3])]
+    """
+    w = Permutation(w)
+    n = len(w)
+    P = Permutations(n)
+    red_words = w.reduced_words()
+    pairs = [(P(w),P.identity()),(P.identity(),P(w))]
+    for word in red_words:
+        for s in range(len(word)):
+            u = P.from_reduced_word(word[:s])
+            v = P.from_reduced_word(word[s:])
+            pairs.append((u,v))
+    return list(set(pairs))
+
 ## Grothendieck polynomials
 
 def pi_divided_difference(i, poly, alphabet='x'):
@@ -501,6 +531,14 @@ def generate_quantum_polynomial_ring(br, num_vars, x_pref='x', start=1):
     """
     xq_vars = ['x'+str(j+start) for j in range(num_vars)]+['q'+str(j+start) for j in range(num_vars)] 
     return PolynomialRing(br, xq_vars, 2*num_vars)
+
+def generate_multi_quantum_polynomial_ring(br, num_vars, prefs=['x', 'y'], start=1):
+    r"""
+    Return a polynomial ring of ``num_vars`` variables in each of ``prefs`` along with ``num_vars`` q-variables adjoined to ``br``.
+    """
+    xyvars = [pref+str(i+start) for pref in prefs for i in range(num_vars)]
+    q_vars = ['q'+str(j+start) for j in range(num_vars)]
+    return PolynomialRing(br, xyvars+q_vars, num_vars*(len(prefs)+1))
 
 def quantum_e_i_m(i, m, ambient_vars, br=QQ, start=1):
     r"""
