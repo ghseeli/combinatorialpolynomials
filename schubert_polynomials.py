@@ -5,7 +5,7 @@
 #                  https://www.gnu.org/licenses/
 # ***************************************************************************
 
-from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions, Sequence, Subsets, cached_function, block_matrix, zero_matrix, binomial, IntegerVectors
+from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions, Sequence, Subsets, cached_function, block_matrix, zero_matrix, binomial, IntegerVectors, CombinatorialFreeModule, SR
 from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
 from functools import reduce
 from math import prod
@@ -16,7 +16,7 @@ import warnings
 
 Permutations.options(mult='r2l')
 
-def _iterate_operators_from_reduced_word(op_fn, w, poly, alphabet='x'):
+def _iterate_operators_from_reduced_word(op_fn, w, poly, alphabet='x', offset=0):
     r"""
     For some natural number indexed operators `X_i`, define for permutation ``w`` operator `X_w(f) = X_{i_1} X_{i_2} \cdots X_{i_l}(f)`, where `w = s_{i_1} \cdots s_{i_l}` is any reduced factorization of `w`. Return `X_w(f)`.
     """
@@ -24,7 +24,7 @@ def _iterate_operators_from_reduced_word(op_fn, w, poly, alphabet='x'):
     res = poly
     red_word = w.reduced_word()
     for i in reversed(red_word):
-        res = op_fn(i, res, alphabet=alphabet)
+        res = op_fn(i-offset, res, alphabet=alphabet)
     return res
 
 def s_i(br, i, alphabet='x'):
@@ -45,20 +45,9 @@ def s_i(br, i, alphabet='x'):
     new_dict = dict([(k,v) for (k,v) in gens_dict.items() if k != x+str(i) and k != x+str(i+1)] + [(x+str(i),gens_dict[x+str(i+1)]), (x+str(i+1),gens_dict[x+str(i)])]) 
     return br.hom([new_dict[k] for k in gens_dict.keys()])
 
-def divided_difference_on_monomial_closed(i, mon):
+def divided_difference_on_monomial_unsimplified(i, mon):
     r"""
-    Return the divided difference `\partial_i` on a monomial ``mon``.
-
-    EXAMPLES::
-
-        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
-        sage: divided_difference_on_monomial_closed(1,x1^5*x2^2)
-        x1^4*x2^2 + x1^3*x2^3 + x1^2*x2^4
-        sage: divided_difference_on_monomial_closed(1,x1^2*x2^5)
-        -x1^4*x2^2 - x1^3*x2^3 - x1^2*x2^4
-        sage: divided_difference_on_monomial_closed(1,x1*x2*x3^4)
-        0
-
+    Return a list of the monomial from applying divided difference operator `\partial_i` to a single monomial.
     """
     supp = list(mon.exponents()[0])
     par = parent(mon)
@@ -70,7 +59,32 @@ def divided_difference_on_monomial_closed(i, mon):
     else:
         exp_list = [supp[:i-1]+[supp[i]-j,supp[i-1]-1+j] + supp[i+1:] for j in range(1,abs(supp[i]-supp[i-1])+1)]
     sign = 1 if supp[i-1] > supp[i] else -1
-    return par.zero() + sign*sum([prod(xx[j]**expon[j] for j in range(len(expon))) for expon in exp_list]) 
+    return [(sign,prod(xx[j]**expon[j] for j in range(len(expon)))) for expon in exp_list] 
+
+def divided_difference_on_monomial_closed(i, mon):
+    r"""
+    Return the divided difference `\partial_i` on a monomial ``mon``.
+
+    This is meant to be a helper function for ``divided_difference_on_polynomial``,
+    which is a more user friendly method that does not rely as much on the ordering of the monomials in the polynomial ring.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+
+        sage: divided_difference_on_monomial_closed(1,x1^5*x2^2)
+        x1^4*x2^2 + x1^3*x2^3 + x1^2*x2^4
+        sage: divided_difference_on_monomial_closed(1,x1^2*x2^5)
+        -x1^4*x2^2 - x1^3*x2^3 - x1^2*x2^4
+        sage: divided_difference_on_monomial_closed(1,x1*x2*x3^4)
+        0
+        sage: R.<x1,x2,x3,y1,y2> = QQ['x1,x2,x3,y1,y2']
+        sage: divided_difference_on_monomial_closed(4,y1^2*y2) # y1,y2 are the 4th and 5th variables
+        y1*y2
+    """
+    par = parent(mon)
+    res = divided_difference_on_monomial_unsimplified(i, mon)
+    return par.zero() + sum([coeff*mon for (coeff,mon) in res])
 
 def divided_difference_matrix(i, domain_mons, codomain_mons):
     r"""
@@ -140,11 +154,26 @@ def divided_difference_matrix_xy(i, xdeg, ydeg, num_vars, lazy=False):
         #return LazyBlockMatrix([[matrix(m,n,{})]*i + [dd_mat_x] + [matrix(m,n,{})]*(y_dim-i-1) for i in range(y_dim)])
     
     #return divided_difference_matrix_x(i, xdeg, num_vars).tensor_product(matrix.identity(y_dim), subdivide=False)
+def divided_difference_on_polynomial_list(i, lpoly, alphabet='x'):
+    par = parent(lpoly[0][1])
+    xi = par(alphabet+str(i))
+    xip1 = par(alphabet+str(i+1))
+    xi_pos = par.gens().index(xi)
+    xip1_pos = par.gens().index(xip1)
+    assert xi_pos+1 == xip1_pos
+    return [(coeff*coeff2,res_mon) for (coeff,mon) in lpoly for (coeff2,res_mon) in divided_difference_on_monomial_unsimplified(xip1_pos, mon)]
+
+def divided_difference_w_on_polynomial_list(w, lpoly, alphabet='x'):
+    return _iterate_operators_from_reduced_word(divided_difference_on_polynomial_list, w, lpoly, alphabet)
+
 def divided_difference_on_polynomial(i, poly, alphabet='x'):
     r"""
     Return the divided difference `\partial_i` on ``poly``, using the closed monomial formula on each monomial. 
 
-   See ``divided_difference_on_monomial_closed``.
+    In principle, this should be more efficient than using the general definition of `\partial_i` because the
+re is no polynomial division.
+
+    See ``divided_difference_on_monomial_closed`` for the closed formula. See ``divided_difference` for the implementation by definition.
 
     EXAMPLES::
     
@@ -155,6 +184,9 @@ def divided_difference_on_polynomial(i, poly, alphabet='x'):
         True
         sage: divided_difference_on_polynomial(2,x1^2*x2) == (x1^2*x2-x1^2*x3)/(x2-x3)
         True
+        sage: R.<x1,x2,x3,y1,y2> = QQ['x1,x2,x3,y1,y2']
+        sage: divided_difference_on_polynomial(1,y1^2*y2,'y') == y1*y2
+        True
     """
     par = parent(poly)
     xi = par(alphabet+str(i))
@@ -162,7 +194,13 @@ def divided_difference_on_polynomial(i, poly, alphabet='x'):
     xi_pos = par.gens().index(xi)
     xip1_pos = par.gens().index(xip1)
     assert xi_pos+1 == xip1_pos
-    return sum([coeff*divided_difference_on_monomial_closed(i, mon) for (coeff,mon) in list(poly)])
+    return sum([coeff*divided_difference_on_monomial_closed(xip1_pos, mon) for (coeff,mon) in list(poly)])
+
+def divided_difference_w_on_polynomial(w, poly, alphabet='x'):
+    par = parent(poly)
+    res = divided_difference_w_on_polynomial_list(w, list(poly), alphabet=alphabet)
+    return par.zero() + sum(coeff*mon for (coeff,mon) in res)
+    #return _iterate_operators_from_reduced_word(divided_difference_on_polynomial, w, poly, alphabet)
 
 def divided_difference(i, f, alphabet='x'):
     r"""
@@ -186,7 +224,7 @@ def divided_difference(i, f, alphabet='x'):
     return 1/(br(x+str(i)) - br(x+str(i+1)))*(f-si(f))
 
     
-def divided_difference_w(w, poly, alphabet='x'):
+def divided_difference_w(w, poly, alphabet='x', start=1):
     r"""
     Return the composition of divided difference operators corresponding to a reduced
     word of permutation `w`.
@@ -206,7 +244,7 @@ def divided_difference_w(w, poly, alphabet='x'):
         sage: divided_difference_w([3,1,2], poly) == x1
         True
     """
-    return _iterate_operators_from_reduced_word(divided_difference, w, poly, alphabet=alphabet)
+    return _iterate_operators_from_reduced_word(divided_difference, w, poly, alphabet=alphabet, offset=1-start)
 
 def divided_difference_w_via_matrix_homogeneous(w, poly, xdeg, ydeg, num_vars, lazy=False):
     r"""
@@ -268,13 +306,14 @@ def double_schubert_poly(w, direct=True):
     """
     w = Permutation(w)
     n = len(w)
-    br = Frac(generate_multi_polynomial_ring(QQ, n))
+    br = generate_multi_polynomial_ring(QQ, n)
     base_poly = prod([br('x'+str(i+1))-br('y'+str(j+1)) for i in range(n) for j in range(n) if i+j+2 <= n])
     longest_word = Permutation(range(n,0,-1))
     if direct:
-        return divided_difference_w(w.inverse()*longest_word, base_poly).numerator()
+        #return divided_difference_w(w.inverse()*longest_word, base_poly).numerator()
+        return divided_difference_w_on_polynomial(w.inverse()*longest_word, base_poly)
     else:
-        return divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly.numerator(),False)
+        return divided_difference_w_via_matrix(w.inverse()*longest_word, base_poly, False)
 
 def reduced_factorization_pairs(w):
     r"""
@@ -525,26 +564,27 @@ def Schubert_in_e(perm, base_ring=QQ, zeroes=True):
     else:
         return [(coeff, supp) for (coeff, supp) in res if coeff != 0]
 
-def generate_quantum_polynomial_ring(br, num_vars, x_pref='x', start=1):
+def generate_quantum_polynomial_ring(br, num_vars, x_pref='x', start=1, q_pref='q'):
     r"""
     Return the polynomial ring with ``num_vars`` x-variables and ``num_vars`` q-variables.
-    """
-    xq_vars = ['x'+str(j+start) for j in range(num_vars)]+['q'+str(j+start) for j in range(num_vars)] 
+    
+"""
+    xq_vars = ['x'+str(j+start) for j in range(num_vars)]+[q_pref+str(j+start) for j in range(num_vars)] 
     return PolynomialRing(br, xq_vars, 2*num_vars)
 
-def generate_multi_quantum_polynomial_ring(br, num_vars, prefs=['x', 'y'], start=1):
+def generate_multi_quantum_polynomial_ring(br, num_vars, prefs=['x', 'y'], start=1, q_pref='q'):
     r"""
     Return a polynomial ring of ``num_vars`` variables in each of ``prefs`` along with ``num_vars`` q-variables adjoined to ``br``.
     """
     xyvars = [pref+str(i+start) for pref in prefs for i in range(num_vars)]
-    q_vars = ['q'+str(j+start) for j in range(num_vars)]
+    q_vars = [q_pref+str(j+start) for j in range(num_vars)]
     return PolynomialRing(br, xyvars+q_vars, num_vars*(len(prefs)+1))
 
-def quantum_e_i_m(i, m, ambient_vars, br=QQ, start=1):
+def quantum_e_i_m(i, m, ambient_vars, br=QQ, start=1, q_pref='q'):
     r"""
     Return the quantum ``E_i^m`` polynomial.
     """
-    ambient_ring = generate_quantum_polynomial_ring(br, ambient_vars, start=start)
+    ambient_ring = generate_quantum_polynomial_ring(br, ambient_vars, start=start, q_pref=q_pref)
     if i < 0 or i > m:
         return ambient_ring.zero()
     if m < 0:
@@ -552,12 +592,12 @@ def quantum_e_i_m(i, m, ambient_vars, br=QQ, start=1):
     if i == 0:
         return ambient_ring.one()
     if m == 1:
-        return quantum_e_i_m(i,m-1,ambient_vars,br,start)+ambient_ring('x'+str(m-1+start))*quantum_e_i_m(i-1,m-1,ambient_vars,br,start)
-    return quantum_e_i_m(i,m-1,ambient_vars,br,start)+ambient_ring('x'+str(m-1+start))*quantum_e_i_m(i-1,m-1,ambient_vars,br,start) + quantum_e_i_m(i-2,m-2,ambient_vars,br,start)*ambient_ring('q'+str(m-2+start))
+        return quantum_e_i_m(i,m-1,ambient_vars,br,start,q_pref)+ambient_ring('x'+str(m-1+start))*quantum_e_i_m(i-1,m-1,ambient_vars,br,start,q_pref)
+    return quantum_e_i_m(i,m-1,ambient_vars,br,start,q_pref)+ambient_ring('x'+str(m-1+start))*quantum_e_i_m(i-1,m-1,ambient_vars,br,start,q_pref) + quantum_e_i_m(i-2,m-2,ambient_vars,br,start,q_pref)*ambient_ring(q_pref+str(m-2+start))
 
-def quantum_e_seq(seq, br=QQ, start=1):
+def quantum_e_seq(seq, br=QQ, start=1, q_pref='q'):
     m = len(seq)
-    return prod([quantum_e_i_m(seq[i],i+1,m,br,start) for i in range(m)]) 
+    return prod([quantum_e_i_m(seq[i],i+1,m,br,start,q_pref=q_pref) for i in range(m)]) 
 
 def quantum_e_basis(deg, l, br=QQ, start=1):
     elms = [quantum_e_seq(seq,br,start) for seq in IntegerVectors(deg,length=l)]
@@ -611,6 +651,105 @@ def generate_quantum_Schubert_basis(br, num_vars):
         quantum_Schubert_dict[br(quantum_Schubert(list(perm)))] = list(perm)
     return quantum_Schubert_dict
     
+def quantum_double_Schubert(perm, base_ring=QQ, start=1, y_pref='y', q_pref='q'):
+    r"""
+    Return the quantum double Schubert polynomials from the divided difference formula in Appendix J of Fulton's "Schubert Varieties and Degeneracy Loci."
+
+    EXAMPLES::
+
+        sage: A = generate_multi_quantum_polynomial_ring(QQ,4)
+        sage: x1,x2,x3,x4,y1,y2,y3,y4,q1,q2,q3,q4 = A.gens() 
+        sage: quantum_double_Schubert([3,1,4,2]) == (x1-y1)*(x1-y2)*(x3-y2)+(x1-y1)*(x1-y2)*(x2-y1)-q1*(x3-y2)+q1*(x1-y2)
+        True
+        sage: quantum_double_Schubert([3,1,4,2]).subs({y1:0,y2:0,y3:0,y4:0}) - quantum_Schubert([3,1,4,2])
+        0
+        sage: quantum_double_Schubert([3,1,4,2]).subs({q1:0,q2:0,q3:0,q4:0}) - double_schubert_poly([3,1,4,2])
+        0
+
+    """
+    perm = Permutation(perm)
+    num_vars = len(perm)
+    ambient_ring = generate_multi_quantum_polynomial_ring(base_ring, num_vars, prefs=['x', y_pref], start=start, q_pref=q_pref)
+    subs_dict = lambda k: {ambient_ring('x'+str(i)):ambient_ring('x'+str(i))-ambient_ring(y_pref+str(num_vars-1-k+start)) for i in range(start,num_vars-1+start)}
+    w0 = Permutation(list(range(num_vars,0,-1)))
+    if perm == w0:
+        return prod([ambient_ring(quantum_e_i_m(k,k,num_vars,br=base_ring,start=start,q_pref=q_pref)).subs(subs_dict(k)) for k in range(1,num_vars)])
+    else:
+        return (-1)**(binomial(num_vars,2)-perm.length())*divided_difference_w_on_polynomial(perm*w0, quantum_double_Schubert(w0, base_ring, start, y_pref, q_pref), y_pref)
+
+def generate_quantum_double_Schubert_basis(br, num_vars, y_pref='y'):
+    r"""
+    Returns dictionary with quantum double Schubert polynomial as key and its corresponding permutation as value in given base ring.
+    """
+    quantum_Schubert_dict = {}
+    
+    for perm in Permutations(num_vars):
+        quantum_Schubert_dict[br(quantum_double_Schubert(list(perm),y_pref=y_pref))] = list(perm)
+    return quantum_Schubert_dict
+
+class GeneralizedSchubertPolynomialRing(CombinatorialFreeModule):
+    def __init__(self, R, basis_fn):
+        r"""
+        Helper class for making rings of various generalizations of Schubert polynomials.
+        """
+        self._repr_option_bracket = False
+        self._basis_fn = basis_fn
+        CombinatorialFreeModule.__init__(self, R, Permutations(), category=GradedAlgebrasWithBasis(R), prefix='X')
+
+    def one_basis(self):
+        return self._indices([1])
+
+    def _element_constructor_(self, x):
+        if isinstance(x, list) or isinstance(x, tuple) or isinstance(x, Permutation):
+            if x not in Permutations():
+                raise ValueError(f"the input {x} is not a valid permutation")
+            perm = Permutation(x).remove_extra_fixed_points()
+            return self._from_dict({perm: self.base_ring().one()})
+        else:
+            raise TypeError("Do not know how to make " + str(x) + " into quantum Schubert polynomial.")
+
+class QuantumDoubleSchubertPolynomialRing(GeneralizedSchubertPolynomialRing):
+    def __init__(self):
+        r"""
+        Ring for computing products of quantum double Schubert polynomials.
+
+        EXAMPLES::
+
+            sage: X = QuantumDoubleSchubertPolynomialRing()
+            sage: A = generate_multi_quantum_polynomial_ring(QQ,3)
+            sage: q1 = A('q1')
+            sage: q1*X([2,3,1])+2*X([3,1,2])
+            q1*X[2, 3, 1] + 2*X[3, 1, 2]
+        """
+        self._name = "Quantum double Schubert polynomial ring"
+        GeneralizedSchubertPolynomialRing.__init__(self, SR, quantum_double_Schubert)
+
+    def product_on_basis(self, left, right):
+        r"""
+        EXAMPLES::
+
+            sage: p1 = Permutation([2,1])
+            sage: p2 = Permutation([2,1])
+            sage: X = QuantumDoubleSchubertPolynomialRing()
+            sage: A = generate_multi_quantum_polynomial_ring(QQ,3)
+            sage: (x1,x2,x3,y1,y2,y3,q1,q2,q3) = A.gens()
+            sage: quantum_double_Schubert([2,1,3])^2-(quantum_double_Schubert([3,1,2])+(-y1+y2)*quantum_double_Schubert([2,1,3])+q1*quantum_double_Schubert([1,2,3]))
+            0
+            sage: X.product_on_basis(p1,p2)
+            q1*X[1] + (-y1+y2)*X[2, 1] + X[3, 1, 2]
+        """
+        deg_of_res = Permutation(left).length() + Permutation(right).length()
+        # This uses a result of AndreW Hardt and David Wallach on usual Schubert polynomials to determine which symmetric group the product will ultimately land in.
+        left_lehmer_cocode = Permutation(left).to_lehmer_cocode()
+        right_lehmer_cocode = Permutation(right).to_lehmer_cocode()
+        Lambda_left = [sum([1 if left_lehmer_cocode[j]>0 else 0 for j in range(i,len(left_lehmer_cocode))]) for i in range(len(left_lehmer_cocode))]+[0]*(len(right_lehmer_cocode)-len(left_lehmer_cocode))
+        Lambda_right = [sum([1 if right_lehmer_cocode[j]>0 else 0 for j in range(i,len(right_lehmer_cocode))]) for i in range(len(right_lehmer_cocode))]+[0]*(len(left_lehmer_cocode)-len(right_lehmer_cocode))
+        max_n = max([Lambda_left[i]+Lambda_right[i]+i for i in range(len(Lambda_left))]+[len(left),len(right)])
+        A = generate_polynomial_ring(Frac(generate_multi_polynomial_ring(QQ,max_n, ['q','y'])), max_n)
+        support = {perm:A(quantum_double_Schubert(perm)) for perm in Permutations(max_n) if perm.length() <= deg_of_res}
+        res = solve_polynomial_in_terms_of_basis(A(quantum_double_Schubert(left))*A(quantum_double_Schubert(right)),list(support.values()),A.base_ring())
+        return sum(SR(coeff)*self(supp) for (supp,coeff) in zip(support.keys(),res))
+
 ## Quantum Grothendieck polynomials
 
 def quantum_F_p_k(p, k, ambient_vars, br=QQ, x_pref='x', start=1):
