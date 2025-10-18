@@ -16,7 +16,7 @@ import warnings
 
 Permutations.options(mult='r2l')
 
-def _iterate_operators_from_reduced_word(op_fn, w, poly, alphabet='x', offset=0):
+def _iterate_operators_from_reduced_word(op_fn, w, poly, offset=0, **kwargs):
     r"""
     For some natural number indexed operators `X_i`, define for permutation ``w`` operator `X_w(f) = X_{i_1} X_{i_2} \cdots X_{i_l}(f)`, where `w = s_{i_1} \cdots s_{i_l}` is any reduced factorization of `w`. Return `X_w(f)`.
     """
@@ -24,7 +24,7 @@ def _iterate_operators_from_reduced_word(op_fn, w, poly, alphabet='x', offset=0)
     res = poly
     red_word = w.reduced_word()
     for i in reversed(red_word):
-        res = op_fn(i-offset, res, alphabet=alphabet)
+        res = op_fn(i-offset, res, **kwargs)
     return res
 
 def s_i(br, i, alphabet='x'):
@@ -44,6 +44,32 @@ def s_i(br, i, alphabet='x'):
     x = alphabet
     new_dict = dict([(k,v) for (k,v) in gens_dict.items() if k != x+str(i) and k != x+str(i+1)] + [(x+str(i),gens_dict[x+str(i+1)]), (x+str(i+1),gens_dict[x+str(i)])]) 
     return br.hom([new_dict[k] for k in gens_dict.keys()])
+
+def s_i_on_monomial(i, mon):
+    r"""
+    Return the action of `s_i` on a monomial ``mon`` directly without using any homomorphism machinery.
+    """
+    supp = list(mon.exponents()[0])
+    par = parent(mon)
+    xx = par.gens()
+    new_supp = supp[:i-1] + [supp[i],supp[i-1]] + supp[i+1:]
+    return prod(xx[j]**new_supp[j] for j in range(len(supp)))
+
+def s_i_on_polynomial(i, poly):
+    return sum(coeff*s_i_on_monomial(i,mon) for (coeff,mon) in poly)
+
+def divided_difference_on_monomial_exponent_unsimplified(i, exp_list):
+    r"""
+    Return a list of (coefficient,exponent) tuples of `\partial_i` on a monomial represented by its exponent vector.
+    """
+    if supp[i] == supp[i-1]:
+         return []
+    elif supp[i-1] > supp[i]:
+        exp_list = [supp[:i-1]+[supp[i-1]-j,supp[i]-1+j] + supp[i+1:] for j in range(1,abs(supp[i]-supp[i-1])+1)]
+    else:
+        exp_list = [supp[:i-1]+[supp[i]-j,supp[i-1]-1+j] + supp[i+1:] for j in range(1,abs(supp[i]-supp[i-1])+1)]
+    sign = 1 if supp[i-1] > supp[i] else -1
+    return [(sign,expon) for expon in exp_list]
 
 def divided_difference_on_monomial_unsimplified(i, mon):
     r"""
@@ -155,6 +181,9 @@ def divided_difference_matrix_xy(i, xdeg, ydeg, num_vars, lazy=False):
     
     #return divided_difference_matrix_x(i, xdeg, num_vars).tensor_product(matrix.identity(y_dim), subdivide=False)
 def divided_difference_on_polynomial_list(i, lpoly, alphabet='x'):
+    r"""
+    Return the result of `\partial_i` on a polynomoial respresented as in a list of tuples of the form (coefficient, monomial).
+    """
     par = parent(lpoly[0][1])
     xi = par(alphabet+str(i))
     xip1 = par(alphabet+str(i+1))
@@ -164,7 +193,11 @@ def divided_difference_on_polynomial_list(i, lpoly, alphabet='x'):
     return [(coeff*coeff2,res_mon) for (coeff,mon) in lpoly for (coeff2,res_mon) in divided_difference_on_monomial_unsimplified(xip1_pos, mon)]
 
 def divided_difference_w_on_polynomial_list(w, lpoly, alphabet='x'):
-    return _iterate_operators_from_reduced_word(divided_difference_on_polynomial_list, w, lpoly, alphabet)
+    r"""
+    Return the result of `\partial_w` on a polynomoial respresented as in a list of tuples of the form (coefficient, monomial).
+    """
+    par = parent(lpoly[0][1])
+    return _iterate_operators_from_reduced_word(divided_difference_on_polynomial_list, w, lpoly, alphabet=alphabet)
 
 def divided_difference_on_polynomial(i, poly, alphabet='x'):
     r"""
@@ -197,6 +230,9 @@ re is no polynomial division.
     return sum([coeff*divided_difference_on_monomial_closed(xip1_pos, mon) for (coeff,mon) in list(poly)])
 
 def divided_difference_w_on_polynomial(w, poly, alphabet='x'):
+    r"""
+    Return the divided difference `\partial_w` on polynomial ``poly``, using the closed monomial formula on each monomial. 
+    """
     par = parent(poly)
     res = divided_difference_w_on_polynomial_list(w, list(poly), alphabet=alphabet)
     return par.zero() + sum(coeff*mon for (coeff,mon) in res)

@@ -214,3 +214,32 @@ def coeff_support_list_to_polynomial(coeff_support_list, poly_ring):
     """
     gens = poly_ring.gens()
     return sum(coeff*prod(gens[i]**supp[i] for i in range(len(supp))) for (coeff, supp) in coeff_support_list)
+
+def coefficient_of_monomial_in_polynomial(mon, flat_f):
+    r"""
+    For a polynomial, give the coefficient of a given monomial, considering other monomial generators as valid coefficients.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+        sage: f = 2*x1^2*x2 + x1*x2^2+x2^3
+        sage: coefficient_of_monomial_in_polynomial(x1, f)
+        x2^2
+        sage: coefficient_of_monomial_in_polynomial(x1^2, f)
+        2*x2
+        sage: A.<x1,x2,x3> = LaurentPolynomialRing(QQ,'x1,x2,x3')
+        sage: g = x1^(-1)*x2 + x1^2*x2^(-3)
+        sage: coefficient_of_monomial_in_polynomial(x2^(-3), g)
+        x1^2
+        sage: coefficient_of_monomial_in_polynomial(x2, g)
+        x1^-1
+    """
+    assert len(mon.exponents()) == 1, "First argument {} is not a monomial!".format(mon)
+    mon_exp = mon.exponents()[0]
+    gens = parent(flat_f).gens()
+    res = 0
+    for (coeff, mn) in flat_f:
+        mon2_exp = mn.exponents()[0]
+        if all(mon_exp[j] == 0 or mon2_exp[j] - mon_exp[j] == 0 for j in range(len(mon_exp))):
+            res += coeff*prod(gens[j]**(mon2_exp[j]-(mon_exp[j] if j < len(mon_exp) else 0)) for j in range(len(mon2_exp)))
+    return res
