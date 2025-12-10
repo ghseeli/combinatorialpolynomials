@@ -45,18 +45,33 @@ def s_i(br, i, alphabet='x'):
     new_dict = dict([(k,v) for (k,v) in gens_dict.items() if k != x+str(i) and k != x+str(i+1)] + [(x+str(i),gens_dict[x+str(i+1)]), (x+str(i+1),gens_dict[x+str(i)])]) 
     return br.hom([new_dict[k] for k in gens_dict.keys()])
 
-def s_i_on_monomial(i, mon):
+def s_i_on_monomial(i, mon, alphabet='x'):
     r"""
     Return the action of `s_i` on a monomial ``mon`` directly without using any homomorphism machinery.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+        sage: s_i_on_monomial(1, x1*x3)
+        x2*x3
+        sage: S.<q,t,x1,x2,x3> = QQ['q,t,x1,x2,x3']
+        sage: s_i_on_monomial(2, x1*x3)
+        x1*x2
     """
-    supp = list(mon.exponents()[0])
     par = parent(mon)
     xx = par.gens()
-    new_supp = supp[:i-1] + [supp[i],supp[i-1]] + supp[i+1:]
+    xi = par(alphabet+str(i))
+    xip1 = par(alphabet+str(i+1))
+    xi_pos = xx.index(xi)
+    xip1_pos = xx.index(xip1)
+    supp = list(mon.exponents()[0])
+    new_supp = supp[:]
+    new_supp[xi_pos] = supp[xip1_pos]
+    new_supp[xip1_pos] = supp[xi_pos]
     return prod(xx[j]**new_supp[j] for j in range(len(supp)))
 
-def s_i_on_polynomial(i, poly):
-    return sum(coeff*s_i_on_monomial(i,mon) for (coeff,mon) in poly)
+def s_i_on_polynomial(i, poly, alphabet='x'):
+    return sum(coeff*s_i_on_monomial(i,mon,alphabet=alphabet) for (coeff,mon) in poly)
 
 def divided_difference_on_monomial_exponent_unsimplified(i, exp_list):
     r"""

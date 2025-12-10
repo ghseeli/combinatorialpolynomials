@@ -10,6 +10,9 @@ Certain functions may also be implemented in SageMath, but I have chosen to rewr
 + Grothendieck polynomials
 + Quantum Schubert polynomials
 + Quantum Grothendieck polynomials
++ Key polynomials / Type A Demazure characters
++ Demazure atom polynomials
++ Nonsymmetric Hall-Littlewood polynomials (via action of Demazure-Lusztig operators)
  
 * Contributing
 In the spirit of collaboration, if you find a bug, mistake, or improvement, please feel free to make a GitHub issue or, even better, a pull request.

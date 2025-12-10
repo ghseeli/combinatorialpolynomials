@@ -9,26 +9,33 @@
 from sage.all import IntegerVectors, vector, matrix, QQ, PolynomialRing, LaurentPolynomialRing, parent, prod
 from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
 
-def generate_polynomial_ring(br, num_vars, x_pref='x', start=1):
+def generate_polynomial_ring(br, num_vars, x_pref='x', start=1, pre_extra_vars=[], post_extra_vars=[]):
     r"""
     Return a polynomial ring of ``num_vars`` variables adjoined to ``br``.
     """
     xvars = [x_pref+str(i+start) for i in range(num_vars)]
-    return PolynomialRing(br, xvars, num_vars)
+    return PolynomialRing(br, pre_extra_vars+xvars+post_extra_vars, len(pre_extra_vars)+num_vars+len(post_extra_vars))
 
-def generate_laurent_polynomial_ring(br, num_vars, x_pref='x', start=1):
+def generate_laurent_polynomial_ring(br, num_vars, x_pref='x', start=1, pre_extra_vars=[], post_extra_vars=[]):
     r"""
     Return a Laurent polynomial ring of ``num_vars`` variables adjoined to ``br``.
     """
     xvars = [x_pref+str(i+start) for i in range(num_vars)]
-    return LaurentPolynomialRing(br, xvars)
+    return LaurentPolynomialRing(br, pre_extra_vars+xvars+post_extra_vars)
 
-def generate_multi_polynomial_ring(br, num_vars, prefs=['x','y'], start=1):
+def generate_multi_polynomial_ring(br, num_vars, prefs=['x','y'], start=1, pre_extra_vars=[], post_extra_vars=[]):
     r"""
     Return a polynomial ring of ``num_vars`` variables in each of ``prefs`` adjoined to ``br``.
     """
     xyvars = [pref+str(i+start) for pref in prefs for i in range(num_vars)]
-    return PolynomialRing(br, xyvars, num_vars*len(prefs))
+    return PolynomialRing(br, pre_extra_vars+xyvars+post_extra_vars, num_vars*len(prefs)+len(pre_extra_vars)+len(post_extra_vars))
+
+def generate_multi_laurent_polynomial_ring(br, num_vars, prefs=['x','y'], start=1, pre_extra_vars=[], post_extra_vars=[]):
+    r"""
+    Return a Laurent polynomial ring of ``num_vars`` variables adjoined to ``br``.
+    """
+    xyvars = [pref+str(i+start) for pref in prefs for i in range(num_vars)]
+    return LaurentPolynomialRing(br, pre_extra_vars+xyvars+post_extra_vars)
 
 def monomial_basis(n, br):
     r"""
@@ -243,3 +250,50 @@ def coefficient_of_monomial_in_polynomial(mon, flat_f):
         if all(mon_exp[j] == 0 or mon2_exp[j] - mon_exp[j] == 0 for j in range(len(mon_exp))):
             res += coeff*prod(gens[j]**(mon2_exp[j]-(mon_exp[j] if j < len(mon_exp) else 0)) for j in range(len(mon2_exp)))
     return res
+
+
+def specialize_flat_polynomial_variables(subs_dict, flat_poly):
+    r"""
+    Given a variable occurring in a flat polynomial, specialize it to the specified value.
+
+    Note, this function should be unnecessary, but at the time of this writing, there are
+    bugs in the `.subs()` method for certain multivariate polynomials.
+
+    WARNING: This will not invert variables in the coefficient ring!
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+        sage: specialize_flat_polynomial_variables({x1:2,x2:3}, x1*x2+x1*x3+x2*x3+x3^2)
+        x3^2 + 5*x3 + 6
+    """
+    par = parent(flat_poly)
+    xx = par.gens()
+    spec_var_indices = [xx.index(variable) for variable in subs_dict.keys()]
+    unspec_var_indices = list(set(range(len(xx)))-set(spec_var_indices))
+    return sum(coeff*prod(xx[i]**mon.exponents()[0][i] for i in unspec_var_indices)*prod((subs_dict[xx[i]])**mon.exponents()[0][i] for i in spec_var_indices) for (coeff,mon) in flat_poly)
+
+def invert_variables_in_flat_polynomial(flat_poly, var_list=None):
+    r"""
+    Invert variables in a flat polynomial ring.
+
+    WARNING: This will not invert variables in the coefficient ring!
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+        sage: invert_variables_in_flat_polynomial(x1^2*x2)
+        x1^-2*x2^-1
+        sage: S.<t,x1,x2,x3> = QQ['t,x1,x2,x3']
+        sage: invert_variables_in_flat_polynomial(t*x1^2*x2)
+        t^-1*x1^-2*x2^-1
+        sage: invert_variables_in_flat_polynomial(t*x1^2*x2, [x1,x2,x3])
+        t*x1^-2*x2^-1
+    """
+    par = parent(flat_poly)
+    xx = par.gens()
+    lpr = LaurentPolynomialRing(par.base_ring(), [str(x) for x in xx])
+    if not var_list:
+        var_list = xx
+    inv_xx = {lpr(x):lpr(x)**(-1) for x in var_list}
+    return specialize_flat_polynomial_variables(inv_xx, lpr(flat_poly))
