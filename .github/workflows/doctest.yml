@@ -18,12 +18,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Pull SageMath Docker image
-        run: docker pull sagemath/sagemath:latest
+      - name: Build custom Sage image with Normaliz
+        run: |
+          docker build \
+            -t sage-normaliz \
+            .
 
       - name: Run doctests
         run: |
-          docker run --rm -v ${{ github.workspace }}:/mnt/sage sagemath/sagemath:latest /bin/bash -c "
+          docker run --rm -v ${{ github.workspace }}:/mnt/sage sage-normaliz /bin/bash -c "
             cd /mnt/sage &&
             export PYTHONPATH=.:$PYTHONPATH &&
             sage --version &&
