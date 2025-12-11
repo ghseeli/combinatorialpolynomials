@@ -297,3 +297,22 @@ def invert_variables_in_flat_polynomial(flat_poly, var_list=None):
         var_list = xx
     inv_xx = {lpr(x):lpr(x)**(-1) for x in var_list}
     return specialize_flat_polynomial_variables(inv_xx, lpr(flat_poly))
+
+def separate_polynomial_generators(in_gens, f):
+    r"""
+    Given a multivariate polynomial ``f``, separate the polynomial so the generators not in ``in_gens`` are with the coefficients, presented as a list of tuples.
+
+    EXAMPLES::
+
+        sage: A.<t,x1,x2,x3> = QQ['t,x1,x2,x3']
+        sage: separate_polynomial_generators([x1,x2,x3], x1^2*x3 + t^2 + t*x2)
+        [(1, x1^2*x3), (t^2, 1), (t, x2)]
+    """
+    A = parent(f)
+    gens = A.gens()
+    in_gen_inds = [gens.index(x) for x in in_gens]
+    out_gen_inds = list(set(range(len(gens)))-set(in_gen_inds))
+    out_gens = [gens[i] for i in out_gen_inds]
+    coeff_exps = [(coeff,[mon.exponents()[0][i] for i in out_gen_inds],[mon.exponents()[0][i] for i in in_gen_inds]) for (coeff,mon) in list(f)]
+    return [(coeff*prod(out_gens[i]**out_exps[i] for i in range(len(out_gens))),prod(in_gens[i]**in_exps[i] for i in range(len(in_gens)))) for (coeff,out_exps,in_exps) in coeff_exps]
+    

@@ -1,4 +1,4 @@
-# ****************************************************************************
+# ***************************************************************************
 #
 #  Copyright (C) 2025 George H. Seelinger <ghseeli@gmail.com>
 #
@@ -7,7 +7,7 @@
 # ***************************************************************************
 
 from sage.all import cartesian_product, MixedIntegerLinearProgram, parent, Permutation, Permutations, prod, QQ, Rationals, RootSystem, Word
-from polynomial_utils import generate_laurent_polynomial_ring, invert_variables_in_flat_polynomial, specialize_flat_polynomial_variables
+from polynomial_utils import generate_laurent_polynomial_ring, invert_variables_in_flat_polynomial, separate_polynomial_generators, specialize_flat_polynomial_variables
 from schubert_polynomials import s_i, s_i_on_polynomial, divided_difference, divided_difference_on_polynomial, _iterate_operators_from_reduced_word
 
 def demazure_pi_i(i, f, alphabet='x'):
@@ -142,7 +142,7 @@ def _demazure_inner_prod_on_monomial_exponents(alpha, beta):
     milp = _setup_demazure_inner_prod_milp_on_monomial_exponents(alpha,beta) 
     return sum((-1)**sum(soln) for soln in milp.polyhedron(base_ring=QQ, backend='normaliz').integral_points())
 
-def demazure_inner_prod(f, g):
+def demazure_inner_prod(f, g, alphabet='x'):
     r"""
     Return the result of the Demazure inner product `\langle f, g \rangle_0`.
 
@@ -157,8 +157,21 @@ def demazure_inner_prod(f, g):
         sage: atom_poly2 = atom_polynomial([0,-2,-1])
         sage: demazure_inner_prod(key_poly, atom_poly2)
         0
+        sage: A = generate_laurent_polynomial_ring(QQ, 3, pre_extra_vars=['q','t'])
+        sage: t = A('t')
+        sage: q = A('q')
+        sage: demazure_inner_prod(t*key_polynomial([2,0,1],ambient_ring=A),q^2*atom_polynomial([-2,0,-1],ambient_ring=A))
+        q^2*t
     """
-    return sum(coeff1*coeff2*_demazure_inner_prod_on_monomial_exponents(mon1.exponents()[0], mon2.exponents()[0]) for ((coeff1,mon1),(coeff2,mon2)) in cartesian_product([list(f),list(g)]))
+    Af = parent(f)
+    fgens = Af.gens()
+    fxx = [x for x in fgens if str(x)[0] == alphabet]
+    Ag = parent(g)
+    ggens = Ag.gens()
+    gxx = [x for x in ggens if str(x)[0] == alphabet]
+    f_coeff_mons = separate_polynomial_generators(fxx, f)
+    g_coeff_mons = separate_polynomial_generators(gxx, g)
+    return sum(coeff1*coeff2*_demazure_inner_prod_on_monomial_exponents(mon1.exponents()[0], mon2.exponents()[0]) for ((coeff1,mon1),(coeff2,mon2)) in cartesian_product([f_coeff_mons,g_coeff_mons]))
 
 def demazure_lusztig_i(i, f, alphabet='x', v=None, convention='hhl'):
     r"""
