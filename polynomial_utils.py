@@ -298,6 +298,25 @@ def invert_variables_in_flat_polynomial(flat_poly, var_list=None):
     inv_xx = {lpr(x):lpr(x)**(-1) for x in var_list}
     return specialize_flat_polynomial_variables(inv_xx, lpr(flat_poly))
 
+def reverse_variables_in_flat_polynomial(flat_poly, alphabet='x'):
+    r"""
+    Given a flat polynomial with variables beginning with character ``alphabet``, reverse said variables.
+
+    EXAMPLES::
+
+        sage: R.<x1,x2,x3> = QQ['x1,x2,x3']
+        sage: reverse_variables_in_flat_polynomial(x1^2*x2)
+        x2*x3^2
+        sage: S.<t,x1,x2,x3> = QQ['t,x1,x2,x3']
+        sage: reverse_variables_in_flat_polynomial(t*x1^2*x2)
+        t*x2*x3^2
+    """
+    par = parent(flat_poly)
+    xx = [x for x in par.gens() if str(x)[0] == alphabet]
+    l = len(xx)
+    rev_xx = {xx[i]:xx[l-1-i] for i in range(l)}
+    return specialize_flat_polynomial_variables(rev_xx, flat_poly)
+
 def separate_polynomial_generators(in_gens, f):
     r"""
     Given a multivariate polynomial ``f``, separate the polynomial so the generators not in ``in_gens`` are with the coefficients, presented as a list of tuples.
