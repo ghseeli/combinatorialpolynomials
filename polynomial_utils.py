@@ -326,6 +326,16 @@ def separate_polynomial_generators(in_gens, f):
         sage: A.<t,x1,x2,x3> = QQ['t,x1,x2,x3']
         sage: separate_polynomial_generators([x1,x2,x3], x1^2*x3 + t^2 + t*x2)
         [(1, x1^2*x3), (t^2, 1), (t, x2)]
+        sage: separate_polynomial_generators([t,x1,x2], x1^2*x3 + t^2 + t*x2)
+        [(x3, x1^2), (1, t^2), (1, t*x2)]
+        sage: separate_polynomial_generators([t,x1,x2,x3], x1^2*x3 + t^2 + t*x2)
+        [(1, x1^2*x3), (1, t^2), (1, t*x2)]
+        sage: A = generate_laurent_polynomial_ring(QQ, 3, pre_extra_vars=['t'])
+        sage: t = A('t')
+        sage: x1 = A('x1')
+        sage: x2 = A('x2')
+        sage: separate_polynomial_generators([x1,x2,x3], t*x1^(-1)*x2)
+        [(t, x1^-1*x2)]
     """
     A = parent(f)
     gens = A.gens()

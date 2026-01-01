@@ -1,4 +1,4 @@
-# ***************************************************************************
+# *****************************************************, ambient_ring=**********************
 #
 #  Copyright (C) 2025 George H. Seelinger <ghseeli@gmail.com>
 #
@@ -7,8 +7,8 @@
 # ***************************************************************************
 
 from functools import cache
-from sage.all import cartesian_product, MixedIntegerLinearProgram, parent, Partition, Permutation, Permutations, prod, QQ, Rationals, RootSystem, Word
-from polynomial_utils import generate_laurent_polynomial_ring, invert_variables_in_flat_polynomial, polynomial_by_degree, separate_polynomial_generators, specialize_flat_polynomial_variables
+from sage.all import cartesian_product, IntegerVectors, MixedIntegerLinearProgram, parent, Partition, Permutation, Permutations, prod, QQ, Rationals, RootSystem, Word
+from polynomial_utils import generate_laurent_polynomial_ring, invert_variables_in_flat_polynomial, polynomial_by_degree, reverse_variables_in_flat_polynomial, separate_polynomial_generators, specialize_flat_polynomial_variables
 from schubert_polynomials import s_i, s_i_on_polynomial, divided_difference, divided_difference_on_polynomial, _iterate_operators_from_reduced_word
 
 ## (Isobaric) Demazure operators, key polynomials, atom polynomials
@@ -97,6 +97,9 @@ def key_polynomial(alph, alphabet='x', ambient_ring=None):
         x1^-1*x2^-2 + x1^-2*x2^-1
         sage: key_polynomial([1,2], alphabet='y')
         y1^2*y2 + y1*y2^2
+        sage: A = generate_laurent_polynomial_ring(QQ,2,'x',pre_extra_vars=['t'])
+        sage: key_polynomial([1,2], ambient_ring=A)
+        x1^2*x2 + x1*x2^2
     """
     if not ambient_ring:
         ambient_ring = generate_laurent_polynomial_ring(Rationals(), len(alph), alphabet)
@@ -349,7 +352,7 @@ def dominance_bruhat_partial_order_le(alpha, beta):
     wb = _integer_vector_to_orbit_perm(beta)
     return wa.bruhat_le(wb)
     
-def key_expansion_of_laurent_polynomial(f, alphabet='x'):
+def key_expansion_of_laurent_polynomial(f, alphabet='x', ambient_ring=None):
     r"""
     Given a Laurent polynomial ``f``, give its expansion into key_polynomials.
 
@@ -373,7 +376,10 @@ def key_expansion_of_laurent_polynomial(f, alphabet='x'):
     """
     def revlex_key(alpha):
         return tuple(reversed(alpha))
-    par = parent(f)
+    if not ambient_ring:
+        par = parent(f)
+    else:
+        par = ambient_ring
     g = par(f)
     xx = [x for x in par.gens() if str(x)[0] == alphabet]
     result = []
@@ -381,10 +387,11 @@ def key_expansion_of_laurent_polynomial(f, alphabet='x'):
         alpha = max(g.exponents(), key=revlex_key)
         coeff = g.monomial_coefficient(prod(xx[i]**alpha[i] for i in range(len(alpha))))
         result.append((tuple(alpha), coeff))
-        g -= coeff * key_polynomial(alpha)
+        g -= coeff * key_polynomial(alpha, alphabet=alphabet, ambient_ring=par)
     return result
 
-def key_expansion_polynomial_part_of_laurent_polynomial(f, alphabet='x'):
+
+def key_expansion_polynomial_part_of_laurent_polynomial(f, alphabet='x', ambient_ring=None):
     r"""
     Given a homogeneous Laurent polynomial ``f`` expanded in monomials, return the Demazure character polynomial part.
 
@@ -403,8 +410,52 @@ def key_expansion_polynomial_part_of_laurent_polynomial(f, alphabet='x'):
         sage: key_expansion_polynomial_part_of_laurent_polynomial(xx[0]**(-1)*xx[1])
         [((0, 0), -1)]
     """
-    key_exp = key_expansion_of_laurent_polynomial(f, alphabet=alphabet)
+    key_exp = key_expansion_of_laurent_polynomial(f, alphabet=alphabet, ambient_ring=ambient_ring)
     return [(supp,coeff) for (supp,coeff) in key_exp if all(supp[i] >= 0 for i in range(len(supp)))]
+        
+def key_expansion_polynomial_part_via_inner_product(f, alphabet='x'):
+    r"""
+    Given a homogeneous Laurent polynomial ``f``, return the Demazure character polynomial part 
+    using direct inner product computation.
+
+    This computes coefficients by taking inner products with atom polynomials, which is more 
+    efficient when the Laurent polynomial has many non-polynomial key polynomials that would 
+    be discarded.
+
+    The coefficient of key polynomial indexed by ``alpha`` is given by 
+    ``\langle f, A_{-alpha} \rangle_0`` where ``A_{-alpha}`` is the atom polynomial. 
+
+    EXAMPLES::
+
+        sage: A = generate_laurent_polynomial_ring(QQ, 2)
+        sage: xx = A.gens()
+        sage: key_expansion_polynomial_part_via_inner_product(xx[0]**(-1)*xx[1])
+        [((0, 0), -1)]
+        sage: f = key_polynomial([2,0,1]) + 3*key_polynomial([1,2,0])
+        sage: result1 = key_expansion_polynomial_part_of_laurent_polynomial(f)
+        sage: result2 = key_expansion_polynomial_part_via_inner_product(f)
+        sage: sorted(result1) == sorted(result2)
+        True
+    """
+    par = parent(f)
+    xx = [x for x in par. gens() if str(x)[0] == alphabet]
+    n = len(xx)
+    if f == 0:
+        return []
+    exponents = f.exponents()
+    if not exponents:
+        return []
+    degree = sum(exponents[0])
+    polynomial_indices = IntegerVectors(degree, length=n)
+    result = []
+    for alpha in polynomial_indices:
+        alpha_tuple = tuple(alpha)
+        neg_alpha = tuple(-a for a in alpha_tuple)
+        atom = atom_polynomial(neg_alpha, alphabet=alphabet, ambient_ring=par)
+        coeff = demazure_inner_prod(f, atom, alphabet=alphabet)
+        if coeff != 0:
+            result.append((alpha_tuple, coeff))
+    return result
     
 def polynomial_part_of_laurent_polynomial(f, alphabet='x'):
     r"""
@@ -568,8 +619,12 @@ def nonsymmetric_hall_littlewood_F(alph, twist=None, v=None, alphabet='x', ambie
         True
     """
     if not ambient_ring:
-        stv = str(v) if v else 't'
-        ambient_ring = generate_laurent_polynomial_ring(Rationals(), len(alph), alphabet, pre_extra_vars = [stv])
+        if not v:
+            ambient_ring = generate_laurent_polynomial_ring(Rationals(), len(alph), alphabet, pre_extra_vars = ['t'])
+        else:
+            coeff_gens = [str(q) for q in parent(v).gens() if str(q)[0] != alphabet] 
+            ambient_ring = generate_laurent_polynomial_ring(Rationals(), len(alph), alphabet, pre_extra_vars = list(coeff_gens))
+            v = ambient_ring(v)
     if not v:
         v = ambient_ring('t')
     if not twist:
@@ -589,3 +644,64 @@ def nonsymmetric_hall_littlewood_F(alph, twist=None, v=None, alphabet='x', ambie
         prebar_xx = [x for x in parent(prebar).gens() if str(x)[0] == alphabet]
         return invert_variables_in_flat_polynomial(prebar, var_list=prebar_xx) 
 
+def _setup_HL_inner_prod_milp_on_monomial_exponents(gamma):
+    P = MixedIntegerLinearProgram()
+    w = P.new_variable(integer=True, nonnegative=True)
+    x = P.new_variable(integer=True, nonnegative=True)
+    n = len(gamma)-1
+    RS = RootSystem(['A',n])
+    ZZnp1 = RS.ambient_space()
+    pos_roots = [ZZnp1(r) for r in RS.root_lattice().positive_roots()]
+    for k in range(len(gamma)):
+        P.add_constraint(sum((w[i]+x[i])*pos_roots[i][k] for i in range(len(pos_roots))) + gamma[k] == 0)
+    for i in range(len(pos_roots)):
+        P.add_constraint(x[i] <= 1)
+    return P
+
+def HL_inner_prod_on_monomial_exponents(alpha, beta, t=None, coeff_ring=None):
+    r"""
+    Evaluate `\langle x^\alpha, x^\beta \rangle_t`. 
+    """
+    if not coeff_ring:
+        coeff_ring = QQ['t']
+    if not t:
+        t = coeff_ring('t')
+    if len(alpha) != len(beta):
+        alpha = list(alpha) + [0]*(len(beta)-len(alpha))
+        beta = list(beta) + [0]*(len(alpha)-len(beta))
+    gamma = [alpha[i]+beta[i] for i in range(len(alpha))]
+    milp = _setup_HL_inner_prod_milp_on_monomial_exponents(gamma) 
+    return sum(t**sum(soln[2*i] for i in range(len(soln)//2))*(-1)**sum(soln[2*i+1] for i in range(len(soln)//2)) for soln in milp.polyhedron(base_ring=QQ, backend='normaliz').integral_points())
+
+def HL_inner_prod(f, g, t=None, alphabet='x'):
+    r"""
+    Compute the Hall-Littlewood t-inner product `\langle f, g \rangle_t = \langle x^0 \rangle f g \Omega\left[(t-1) \sum_{i < j} x_i/x_j \right]`.
+
+    Under this inner product, `E_\lambda(x;t^{-1})` and `\overline{F_\lambda(x;t^{-1})}` form dual bases.
+
+    EXAMPLES::
+
+        sage: A.<t> = QQ['t']
+        sage: HL_inner_prod(nonsymmetric_hall_littlewood_E([1,2],v=t**(-1)),invert_variables_in_flat_polynomial(nonsymmetric_hall_littlewood_F([1,2],v=t**(-1))))
+        1
+        sage: HL_inner_prod(nonsymmetric_hall_littlewood_E([1,2],v=t**(-1)),invert_variables_in_flat_polynomial(nonsymmetric_hall_littlewood_F([2,1],v=t**(-1))))
+        0
+        sage: HL_inner_prod(nonsymmetric_hall_littlewood_E([2,1],v=t**(-1)),invert_variables_in_flat_polynomial(nonsymmetric_hall_littlewood_F([1,2],v=t**(-1))))
+        0
+        sage: HL_inner_prod(nonsymmetric_hall_littlewood_E([2,1],v=t**(-1)),invert_variables_in_flat_polynomial(nonsymmetric_hall_littlewood_F([2,1],v=t**(-1))))
+        1
+        sage: HL_inner_prod(nonsymmetric_hall_littlewood_E([2,1]),invert_variables_in_flat_polynomial(nonsymmetric_hall_littlewood_F([2,1])),t**(-1))
+        1
+        sage: A = parent(nonsymmetric_hall_littlewood_F([0,1]))
+        sage: x2 = A('x2')
+        sage: HL_inner_prod(reverse_variables_in_flat_polynomial(nonsymmetric_hall_littlewood_F([0,1],twist=[2,1])*x2),reverse_variables_in_flat_polynomial(invert_variables_in_flat_polynomial(nonsymmetric_hall_littlewood_E([0,2],twist=[2,1]))))
+    """
+    par = parent(f)
+    t = par(t)
+    gens = par.gens()
+    xx = [g for g in par.gens() if str(g)[0] == alphabet]
+    fsep = separate_polynomial_generators(xx, f)
+    gsep = separate_polynomial_generators(xx, g)
+    xx_inds = [gens.index(x) for x in xx]
+    return sum([coeff1*coeff2*HL_inner_prod_on_monomial_exponents([mon1.exponents()[0][i] for i in xx_inds],[mon2.exponents()[0][i] for i in xx_inds],t=t,coeff_ring=par) for (coeff1,mon1) in fsep for (coeff2,mon2) in gsep])
+    
