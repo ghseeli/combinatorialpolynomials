@@ -695,6 +695,7 @@ def HL_inner_prod(f, g, t=None, alphabet='x'):
         sage: A = parent(nonsymmetric_hall_littlewood_F([0,1]))
         sage: x2 = A('x2')
         sage: HL_inner_prod(reverse_variables_in_flat_polynomial(nonsymmetric_hall_littlewood_F([0,1],twist=[2,1])*x2),reverse_variables_in_flat_polynomial(invert_variables_in_flat_polynomial(nonsymmetric_hall_littlewood_E([0,2],twist=[2,1]))))
+        1
     """
     par = parent(f)
     t = par(t)
