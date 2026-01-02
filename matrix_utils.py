@@ -95,7 +95,7 @@ def tensor_product_of_sparse_rational_matrices(A,B):
     M = MatrixSpace(QQ,A.nrows()*B.nrows(),A.ncols()*B.ncols(), sparse=True)
     return M(flatten_blocks)
 
-def element_to_vector(encoding, elm_tup_list, base_ring=None, sparse=None):
+def element_to_vector(encoding, elm_tup_list, base_ring=None, sparse=False):
     r"""
     Given a list of tuples of the form (coefficient, basis_vector) and an encoding from basis vectors to indices, return the vector representing the ``elm_tup_list``.
 
@@ -133,7 +133,7 @@ def element_to_vector(encoding, elm_tup_list, base_ring=None, sparse=None):
             pre_vec[max_encode-1] = 0
         return vector(base_ring, pre_vec, sparse=sparse)
 
-def vector_to_element(decoding, vec, sparse=True):
+def vector_to_element(decoding, vec, sparse=False):
     r"""
     Convert a vector back to an element represented as a list of (coefficient, basis_element) tuples.
 
@@ -276,7 +276,7 @@ def operator_to_matrix(op, codomain_encoding, ins, base_ring=None):
         raise ValueError("Both input list and base_ring are undefined; cannot produce empty matrix!")
 
 
-def operator_from_matrix(mat, domain_encoding, codomain_decoding):
+def operator_from_matrix(mat, domain_encoding, codomain_decoding, sparse=False):
     r"""
     Construct a linear operator from its matrix representation.
 
