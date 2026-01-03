@@ -644,7 +644,7 @@ def nonsymmetric_hall_littlewood_F(alph, twist=None, v=None, alphabet='x', ambie
         prebar_xx = [x for x in parent(prebar).gens() if str(x)[0] == alphabet]
         return invert_variables_in_flat_polynomial(prebar, var_list=prebar_xx) 
 
-def nonsymmetric_hall_littlewood_e_basis(deg, l, v=None, alphabet='x', ambient_ring=None):
+def nonsymmetric_hall_littlewood_E_basis(deg, l, v=None, alphabet='x', ambient_ring=None):
     r"""
     Generate a basis of nonsymmetric Hall-Littlewood E polynomials of degree ``deg`` in ``l`` variables for non-Laurent polynomials.
 
@@ -665,14 +665,14 @@ def nonsymmetric_hall_littlewood_e_basis(deg, l, v=None, alphabet='x', ambient_r
 
     EXAMPLES::
 
-        sage: nonsymmetric_hall_littlewood_e_basis(2, 2)
-        [x1^2, x1*x2, x2^2]
-        sage: nonsymmetric_hall_littlewood_e_basis(1, 3)
+        sage: nonsymmetric_hall_littlewood_E_basis(2, 2)
+        [x1^2, x1*x2, x1^2 + x1*x2 + x2^2 - t^-1*x1^2 - t^-1*x1*x2]
+        sage: nonsymmetric_hall_littlewood_E_basis(1, 3)
         [x1, x1 + x2 - t^-1*x1, x1 + x2 + x3 - t^-1*x1 - t^-1*x2]
-        sage: len(nonsymmetric_hall_littlewood_e_basis(2, 3))
+        sage: len(nonsymmetric_hall_littlewood_E_basis(2, 3))
         6
         sage: A.<q> = QQ['q']
-        sage: nonsymmetric_hall_littlewood_e_basis(1, 2, v=q)
+        sage: nonsymmetric_hall_littlewood_E_basis(1, 2, v=q)
         [x1, x1 + x2 - q^-1*x1]
 
     The basis elements correspond to all integer vectors of the specified degree and length with non-negative components::
@@ -680,7 +680,7 @@ def nonsymmetric_hall_littlewood_e_basis(deg, l, v=None, alphabet='x', ambient_r
         sage: from sage.all import IntegerVectors
         sage: deg = 2
         sage: l = 2
-        sage: basis = nonsymmetric_hall_littlewood_e_basis(deg, l)
+        sage: basis = nonsymmetric_hall_littlewood_E_basis(deg, l)
         sage: expected_vecs = list(IntegerVectors(deg, l))
         sage: len(basis) == len(expected_vecs)
         True
@@ -689,7 +689,7 @@ def nonsymmetric_hall_littlewood_e_basis(deg, l, v=None, alphabet='x', ambient_r
             for alph in IntegerVectors(deg, length=l)]
     return [elm for elm in elms if elm != 0]
 
-def nonsymmetric_hall_littlewood_f_basis(deg, l, v=None, alphabet='x', ambient_ring=None):
+def nonsymmetric_hall_littlewood_F_basis(deg, l, v=None, alphabet='x', ambient_ring=None):
     r"""
     Generate a basis of nonsymmetric Hall-Littlewood F polynomials of degree ``deg`` in ``l`` variables for non-Laurent polynomials.
 
@@ -710,14 +710,14 @@ def nonsymmetric_hall_littlewood_f_basis(deg, l, v=None, alphabet='x', ambient_r
 
     EXAMPLES::
 
-        sage: nonsymmetric_hall_littlewood_f_basis(2, 2)
+        sage: nonsymmetric_hall_littlewood_F_basis(2, 2)
         [-t*x1*x2 + x1^2 + x1*x2, x1*x2, -t*x1*x2 + x1*x2 + x2^2]
-        sage: nonsymmetric_hall_littlewood_f_basis(1, 3)
+        sage: nonsymmetric_hall_littlewood_F_basis(1, 3)
         [x1, x2, x3]
-        sage: len(nonsymmetric_hall_littlewood_f_basis(2, 3))
+        sage: len(nonsymmetric_hall_littlewood_F_basis(2, 3))
         6
         sage: A.<q> = QQ['q']
-        sage: nonsymmetric_hall_littlewood_f_basis(1, 2, v=q)
+        sage: nonsymmetric_hall_littlewood_F_basis(1, 2, v=q)
         [x1, x2]
 
     The basis elements correspond to all integer vectors of the specified degree and length with non-negative components::
@@ -725,7 +725,7 @@ def nonsymmetric_hall_littlewood_f_basis(deg, l, v=None, alphabet='x', ambient_r
         sage: from sage.all import IntegerVectors
         sage: deg = 2
         sage: l = 2
-        sage: basis = nonsymmetric_hall_littlewood_f_basis(deg, l)
+        sage: basis = nonsymmetric_hall_littlewood_F_basis(deg, l)
         sage: expected_vecs = list(IntegerVectors(deg, l))
         sage: len(basis) == len(expected_vecs)
         True
