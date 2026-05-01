@@ -268,15 +268,6 @@ re is no polynomial division.
 
     return par({k: v for k, v in result_dict.items() if v != 0})
 
-def divided_difference_on_polynomial_old(i, poly, alphabet='x'):
-    par = parent(poly)
-    xi = par(alphabet+str(i))
-    xip1 = par(alphabet+str(i+1))
-    xi_pos = par.gens().index(xi)
-    xip1_pos = par.gens().index(xip1)
-    assert xi_pos+1 == xip1_pos
-    return sum([coeff*divided_difference_on_monomial_closed(xip1_pos, mon) for (coeff,mon) in list(poly)])
-
 def divided_difference_w_on_polynomial(w, poly, alphabet='x'):
     r"""
     Return the divided difference `\partial_w` on polynomial ``poly``, using the closed monomial formula on each monomial. 
