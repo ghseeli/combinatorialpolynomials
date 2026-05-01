@@ -27,6 +27,7 @@ def _iterate_operators_from_reduced_word(op_fn, w, poly, offset=0, **kwargs):
         res = op_fn(i-offset, res, **kwargs)
     return res
 
+@cached_function
 def s_i(br, i, alphabet='x'):
     r"""
     Return a ring homomorphism swapping variables `x_i` and `x_{i+1}` (or any other letter corresponding to ``alphabet``).
@@ -236,6 +237,38 @@ re is no polynomial division.
         sage: divided_difference_on_polynomial(1,y1^2*y2,'y') == y1*y2
         True
     """
+
+    par = parent(poly)
+    xi = par(alphabet + str(i))
+    xip1 = par(alphabet + str(i+1))
+    xi_pos = par.gens().index(xi)
+    xip1_pos = par.gens().index(xip1)
+    assert xi_pos + 1 == xip1_pos
+
+    result_dict = {}
+    for exp, coeff in poly.dict().items():
+        a = exp[xi_pos]    # exponent of x_i
+        b = exp[xip1_pos]  # exponent of x_{i+1}
+        if a == b:
+            continue
+        elif a > b:
+            for j in range(1, a - b + 1):
+                new_exp = list(exp)
+                new_exp[xi_pos] = a - j
+                new_exp[xip1_pos] = b - 1 + j
+                key = tuple(new_exp)
+                result_dict[key] = result_dict.get(key, 0) + coeff
+        else:
+            for j in range(1, b - a + 1):
+                new_exp = list(exp)
+                new_exp[xi_pos] = b - j
+                new_exp[xip1_pos] = a - 1 + j
+                key = tuple(new_exp)
+                result_dict[key] = result_dict.get(key, 0) - coeff
+
+    return par({k: v for k, v in result_dict.items() if v != 0})
+
+def divided_difference_on_polynomial_old(i, poly, alphabet='x'):
     par = parent(poly)
     xi = par(alphabet+str(i))
     xip1 = par(alphabet+str(i+1))
@@ -569,6 +602,13 @@ def double_grothendieck_poly(w, direct=True):
 def e_i_m(i, m, ambient_vars, br=QQ, start=1):
     r"""
     Return the elementary symmetric function `e_i(x_1,\ldots,x_m)`.
+
+    EXAMPLES::
+
+        sage: e_i_m(2, 3, 5)
+        x1*x2 + x1*x3 + x2*x3
+        sage: parent(e_i_m(2, 3, 5))
+        Multivariate Polynomial Ring in x1, x2, x3, x4, x5 over Rational Field
     """
     var_string = reduce(lambda a,b: a+','+b, ['x'+str(j) for j in range(start,start+ambient_vars)])
     ambient_ring = br[var_string]
@@ -580,10 +620,20 @@ def e_i_m(i, m, ambient_vars, br=QQ, start=1):
 def e_basis_elm(seq, br=QQ, start=1):
     r"""
     For ``seq`` a sequence of integers `(a_1,\ldots,a_m)`, return `e_{a_1}(x_1) e_{a_2}(x_1,x_2) \cdots e_{a_m}(x_1,\ldots,x_m)`.
+
+    Note, if `a_i > i`, then the result will be zero.
+
+    EXAMPLES::
+
+        sage: e_basis_elm([2,0,1])
+        0
+        sage: e_basis_elm([1,0,2])
+        x1^2*x2 + x1^2*x3 + x1*x2*x3
     """
     m = len(seq)
     return prod([e_i_m(seq[i],i+1,m,br,start) for i in range(m)])
 
+@cached_function
 def e_basis(deg, l, br=QQ, start=1):
     r"""
     For a fixed degree ``deg`` and number of variables ``l``, return the basis of degree ``deg`` polynomials in ``l`` variables given by products of elementary symmetric functions in increasing numbers of variables.
