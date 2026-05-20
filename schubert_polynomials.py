@@ -423,7 +423,7 @@ def reduced_factorization_pairs(w):
 def additive_affine_length_decomposition(w):
     r"""
     Given an affine permutation ``w`` in type `\widetilde{A}_{n-1}`, return all pairs `(w_1, w_2)` such that
-    `w_1 \in \widetilde{S}_n`, `w_2 \in S_n`, `w = w_1 w_2`, and `\ell(w_1)+\ell(w_2)=\ell(w)`.
+    `w_1 \in \widetilde{A}_{n-1}`, `w_2 \in S_n`, `w = w_1 w_2`, and `\ell(w_1)+\ell(w_2)=\ell(w)`.
 
     EXAMPLES::
 
@@ -454,7 +454,9 @@ def additive_affine_length_decomposition(w):
 def affine_Schubert(w, base_ring=ZZ, x_pref='x', sf_basis='s'):
     r"""
     Return the affine Schubert polynomial associated to ``w`` using
-    `\sum_{w = w_1 w_2,\ \ell(w_1)+\ell(w_2)=\ell(w)} F_{w_1}\mathfrak{S}_{w_2}`.
+    `\sum_{w = w_1 w_2,\ \ell(w_1)+\ell(w_2)=\ell(w)} F_{w_1}\mathfrak{S}_{w_2}`,
+    where `F_{w_1}` is the affine Stanley symmetric function and `\mathfrak{S}_{w_2}` is
+    the ordinary Schubert polynomial.
 
     The output is a symmetric function over `R = \text{base\_ring}[x_1,\ldots,x_n]`.
 
@@ -478,11 +480,11 @@ def affine_Schubert(w, base_ring=ZZ, x_pref='x', sf_basis='s'):
         raise ValueError("invalid symmetric function basis {}".format(sf_basis))
     m = symmetric_functions.m()
     output_basis = getattr(symmetric_functions, sf_basis)()
-    X = SchubertPolynomialRing(base_ring)
+    schubert_ring = SchubertPolynomialRing(base_ring)
     res = m.zero()
     for (w1, w2) in additive_affine_length_decomposition(w):
-        stanley = sum(poly_ring(coeff)*m(pa) for (pa, coeff) in w1.stanley_symmetric_function())
-        res += poly_ring(X(w2).expand())*stanley
+        stanley = sum(poly_ring(coeff)*m(partition) for (partition, coeff) in w1.stanley_symmetric_function())
+        res += poly_ring(schubert_ring(w2).expand())*stanley
     return output_basis(res)
 
 ## Grothendieck polynomials
