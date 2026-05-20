@@ -5,7 +5,7 @@
 #                  https://www.gnu.org/licenses/
 # ***************************************************************************
 
-from sage.all import Permutation, Permutations, QQ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions, Sequence, Subsets, cached_function, block_matrix, zero_matrix, binomial, IntegerVectors, CombinatorialFreeModule, SR
+from sage.all import Permutation, Permutations, QQ, ZZ, Frac, parent, SchubertPolynomialRing, prod, SymmetricFunctions, Sequence, Subsets, cached_function, block_matrix, zero_matrix, binomial, IntegerVectors, CombinatorialFreeModule, SR
 from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
 from functools import reduce
 from math import prod
@@ -419,6 +419,71 @@ def reduced_factorization_pairs(w):
             v = P.from_reduced_word(word[s:])
             pairs.append((u,v))
     return list(set(pairs))
+
+def additive_affine_length_decomposition(w):
+    r"""
+    Given an affine permutation ``w`` in type `\widetilde{A}_{n-1}`, return all pairs `(w_1, w_2)` such that
+    `w_1 \in \widetilde{S}_n`, `w_2 \in S_n`, `w = w_1 w_2`, and `\ell(w_1)+\ell(w_2)=\ell(w)`.
+
+    EXAMPLES::
+
+        sage: W = WeylGroup(['A',2,1], prefix='s')
+        sage: w = W.from_reduced_word([0,1])
+        sage: [(str(w1), list(w2)) for (w1,w2) in additive_affine_length_decomposition(w)]
+        [('s0*s1', [1, 2, 3]), ('s0', [2, 1, 3])]
+    """
+    if not hasattr(w, "parent"):
+        raise TypeError("input must be an affine permutation element")
+    W = w.parent()
+    if not hasattr(W, "cartan_type"):
+        raise TypeError("input must belong to an affine Weyl group of type A")
+    cartan_type = W.cartan_type()
+    if not (cartan_type.is_affine() and cartan_type[0] == 'A'):
+        raise ValueError("input must belong to an affine Weyl group of type A")
+    n = cartan_type[1] + 1
+    pairs = []
+    lw = w.length()
+    for v in Permutations(n):
+        v = Permutation(v)
+        v_aff = W.from_reduced_word(v.reduced_word())
+        w1 = w * v_aff.inverse()
+        if w1.length() + v.length() == lw:
+            pairs.append((w1, v))
+    return pairs
+
+def affine_Schubert(w, base_ring=ZZ, x_pref='x', sf_basis='s'):
+    r"""
+    Return the affine Schubert polynomial associated to ``w`` using
+    `\sum_{w = w_1 w_2,\ \ell(w_1)+\ell(w_2)=\ell(w)} F_{w_1}\mathfrak{S}_{w_2}`.
+
+    The output is a symmetric function over `R = \text{base\_ring}[x_1,\ldots,x_n]`.
+
+    EXAMPLES::
+
+        sage: W = WeylGroup(['A',2,1], prefix='s')
+        sage: affine_Schubert(W.one())
+        s[]
+        sage: affine_Schubert(W.from_reduced_word([0,1]))
+        x1*s[1] + s[1, 1]
+        sage: affine_Schubert(W.from_reduced_word([0,2]), sf_basis='m')
+        (x1+x2)*m[1] + m[1, 1] + m[2]
+    """
+    cartan_type = w.parent().cartan_type()
+    if not (cartan_type.is_affine() and cartan_type[0] == 'A'):
+        raise ValueError("input must belong to an affine Weyl group of type A")
+    n = cartan_type[1] + 1
+    poly_ring = generate_polynomial_ring(base_ring, n, x_pref=x_pref)
+    symmetric_functions = SymmetricFunctions(poly_ring)
+    if not hasattr(symmetric_functions, sf_basis):
+        raise ValueError("invalid symmetric function basis {}".format(sf_basis))
+    m = symmetric_functions.m()
+    output_basis = getattr(symmetric_functions, sf_basis)()
+    X = SchubertPolynomialRing(base_ring)
+    res = m.zero()
+    for (w1, w2) in additive_affine_length_decomposition(w):
+        stanley = sum(poly_ring(coeff)*m(pa) for (pa, coeff) in w1.stanley_symmetric_function())
+        res += poly_ring(X(w2).expand())*stanley
+    return output_basis(res)
 
 ## Grothendieck polynomials
 
