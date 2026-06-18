@@ -9,6 +9,7 @@ Certain functions may also be implemented in SageMath, but I have chosen to rewr
 + Double Schubert polynomials
 + Grothendieck polynomials
 + Quantum Schubert polynomials
++ Affine Schubert polynomials
 + Quantum Grothendieck polynomials
 + Key polynomials / Type A Demazure characters
 + Demazure atom polynomials
